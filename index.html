@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CSV Column Comparator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    input[type="text"],
+    input[type="file"] {
+      display: block;
+      margin-bottom: 10px;
+      padding: 8px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 20px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    .output {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      background: #f4f4f4;
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>CSV Column Comparator</h1>
+  
+  <div>
+    <label for="csv1">Upload CSV 1:</label>
+    <input type="file" id="csv1" accept=".csv">
+  </div>
+  <div>
+    <label for="csv2">Upload CSV 2:</label>
+    <input type="file" id="csv2" accept=".csv">
+  </div>
+  <div>
+    <label for="col1">Column name in CSV 1 to compare:</label>
+    <input type="text" id="col1" placeholder="Enter column header for CSV 1">
+  </div>
+  <div>
+    <label for="col2">Column name in CSV 2 to compare:</label>
+    <input type="text" id="col2" placeholder="Enter column header for CSV 2">
+  </div>
+  <button id="compareBtn">Compare Columns</button>
+  
+  <div class="output" id="output"></div>
+  <button id="downloadBtn" style="display:none;">Download Differences CSV</button>
+  
+  <!-- Include Papa Parse from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+  <script>
+    // Get references to elements
+    const csv1Input = document.getElementById('csv1');
+    const csv2Input = document.getElementById('csv2');
+    const col1Input = document.getElementById('col1');
+    const col2Input = document.getElementById('col2');
+    const compareBtn = document.getElementById('compareBtn');
+    const outputDiv = document.getElementById('output');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let differencesData = null; // will hold the differences for CSV download
+
+    compareBtn.addEventListener('click', () => {
+      const file1 = csv1Input.files[0];
+      const file2 = csv2Input.files[0];
+      const col1 = col1Input.value.trim();
+      const col2 = col2Input.value.trim();
+
+      if (!file1 || !file2) {
+        alert("Please select both CSV files.");
+        return;
+      }
+      if (!col1 || !col2) {
+        alert("Please enter both column names.");
+        return;
+      }
+
+      // Parse CSV 1
+      Papa.parse(file1, {
+        header: true,
+        complete: function(results1) {
+          // Parse CSV 2
+          Papa.parse(file2, {
+            header: true,
+            complete: function(results2) {
+              processCSVData(results1.data, results2.data, col1, col2);
+            },
+            error: function(err) {
+              console.error("Error parsing CSV2:", err);
+              alert("Error parsing CSV 2.");
+            }
+          });
+        },
+        error: function(err) {
+          console.error("Error parsing CSV1:", err);
+          alert("Error parsing CSV 1.");
+        }
+      });
+    });
+
+    function processCSVData(data1, data2, col1, col2) {
+      // Extract values for the specified columns (filtering out empty ones)
+      const values1 = data1.map(row => row[col1]).filter(val => val !== undefined && val !== null && val !== "");
+      const values2 = data2.map(row => row[col2]).filter(val => val !== undefined && val !== null && val !== "");
+
+      // Use Sets for easier comparison
+      const set1 = new Set(values1);
+      const set2 = new Set(values2);
+
+      // Find values unique to CSV 1 (in CSV1 but not in CSV2)
+      const uniqueToCSV1 = [...set1].filter(val => !set2.has(val));
+
+      // Find values unique to CSV 2 (in CSV2 but not in CSV1)
+      const uniqueToCSV2 = [...set2].filter(val => !set1.has(val));
+
+      // Display differences on the page
+      outputDiv.textContent =
+        "Unique values in CSV1 (not in CSV2):\n" + uniqueToCSV1.join(", ") + "\n\n" +
+        "Unique values in CSV2 (not in CSV1):\n" + uniqueToCSV2.join(", ");
+
+      // Prepare data for CSV download.
+      // We'll make a CSV with two columns: Source and Value.
+      const diffRows = [];
+      diffRows.push(["Source", "Value"]);
+      uniqueToCSV1.forEach(val => diffRows.push(["CSV1", val]));
+      uniqueToCSV2.forEach(val => diffRows.push(["CSV2", val]));
+
+      differencesData = diffRows;
+
+      // Show the download button if there are differences
+      downloadBtn.style.display = diffRows.length > 1 ? "block" : "none";
+    }
+
+    downloadBtn.addEventListener('click', () => {
+      if (!differencesData) return;
+
+      // Convert the differencesData array into a CSV string.
+      const csvContent = differencesData.map(row => row.join(",")).join("\n");
+
+      // Create a Blob and trigger the download.
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "differences.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+  </script>
+</body>
+</html>
