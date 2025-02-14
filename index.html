@@ -2,88 +2,168 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>ServOS CSV Checker</title>
-  <!-- Load Google Fonts: Saira for headers and Neuton for body -->
-  <link href="https://fonts.googleapis.com/css2?family=Neuton&family=Saira:wght@700&display=swap" rel="stylesheet">
+  <title>PNM CSV Checker</title>
+  <!-- Load Google Fonts: Saira for headers/buttons/filters, Neuton for body copy -->
+  <link href="https://fonts.googleapis.com/css2?family=Neuton&family=Saira:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    /* Overall background and body text (Neuton) */
+    /* Overall Page Styles */
     body {
       font-family: 'Neuton', serif;
       background-color: #4E525B;
       color: #ffffff;
       max-width: 1000px;
-      margin: 20px auto;
-      padding: 20px;
+      margin: 0 auto;
+      padding: 80px 20px 20px; /* extra top padding for nav bar */
     }
-    /* Headers in Saira, all caps, bold; h1 at 50pt */
+    /* Top Navigation Bar */
+    #topNav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background-color: #2E2E2E;
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      z-index: 1000;
+    }
+    #topNav .logo {
+      margin-right: 20px;
+    }
+    #topNav .logo img {
+      height: 40px; /* adjust as needed */
+    }
+    #topNav .menu {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      gap: 20px;  /* Space between menu items */
+    }
+    #topNav .menu li {
+      position: relative;
+      font-family: 'Saira', sans-serif;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    #topNav .menu li a {
+      color: #ffffff;
+      text-decoration: none;
+      padding: 8px 12px;
+      display: block;
+    }
+    /* Dropdown Menu */
+    #topNav .menu li .dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background-color: #2E2E2E;
+      min-width: 200px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+    #topNav .menu li .dropdown-content a {
+      padding: 10px 16px;
+    }
+    #topNav .menu li:hover .dropdown-content {
+      display: block;
+    }
+    /* Main Heading using Saira */
     h1 {
       font-family: 'Saira', sans-serif;
-      font-weight: bold;
+      font-weight: 700;
       text-transform: uppercase;
       font-size: 50pt;
+      margin-top: 80px; /* to account for fixed nav */
       margin-bottom: 20px;
     }
-    h2, h3, h4, h5, h6 {
-      font-family: 'Saira', sans-serif;
-      font-weight: bold;
-      text-transform: uppercase;
-      margin-bottom: 10px;
-    }
-    /* Drop zones */
+    /* Drop zones with modern look */
     .drop-zone {
       border: 2px dashed #ccc;
+      border-radius: 8px;
       padding: 20px;
       text-align: center;
       margin-bottom: 10px;
       cursor: pointer;
-      color: #666;
       background-color: #ffffff;
+      color: #333;
+      transition: background-color 0.3s, border-color 0.3s;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .drop-zone.drag-over {
       background-color: #e8e8e8;
       border-color: #333;
     }
+    .drop-zone.file-dropped {
+      background-color: #00FF00;
+      border-color: #00FF00;
+      color: #000;
+    }
     input[type="file"] {
       display: none;
     }
-    /* Buttons */
+    /* Modern buttons using Saira */
     button {
       background-color: #FFFF00;
       border: none;
+      border-radius: 4px;
       color: #000;
-      font-family: 'Neuton', serif;
+      font-family: 'Saira', sans-serif;
+      font-weight: 700;
       padding: 10px 20px;
       margin-top: 10px;
       cursor: pointer;
+      transition: background-color 0.3s, box-shadow 0.3s;
     }
-    /* Filter Controls */
+    button:hover {
+      background-color: #ffed00;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    /* Filter Controls styled in Saira */
     #filterControls {
       margin: 20px 0;
-      padding: 10px;
+      padding: 10px 15px;
       background: #f8f8f8;
       border: 1px solid #ccc;
       border-radius: 4px;
-      color: #000;
-      font-family: 'Neuton', serif;
+      font-family: 'Saira', sans-serif;
+      color: #333;
+    }
+    #filterControls > div {
+      margin-bottom: 10px;
     }
     #filterControls label {
+      font-size: 16px;
       margin-right: 15px;
     }
-    /* Groups and Tables */
+    #filterControls input,
+    #filterControls select {
+      font-family: 'Saira', sans-serif;
+      font-size: 16px;
+      padding: 5px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-left: 5px;
+    }
+    /* Group boxes with modern styling */
     .group {
       border: 1px solid #ccc;
+      border-radius: 8px;
       margin: 20px 0;
-      padding: 10px;
-      border-radius: 4px;
+      padding: 15px;
       background-color: #ffffff;
       color: #000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .group h2 {
       margin-top: 0;
       background: #eee;
       padding: 8px;
-      color: #000;
+      border-radius: 4px;
+      color: #333;
     }
+    /* Tables using Neuton for body copy */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -109,9 +189,33 @@
   </style>
 </head>
 <body>
-  <h1>ServOS CSV Checker</h1>
+  <!-- Top Navigation Bar -->
+  <div id="topNav">
+    <div class="logo">
+      <!-- Save your logo image as "logo.png" in the same folder as this HTML file -->
+      <img src="logo.png" alt="Logo" />
+    </div>
+    <ul class="menu">
+      <li class="dropdown">
+        <a href="#">PNM</a>
+        <div class="dropdown-content">
+          <a href="#">PNM CSV Checker</a>
+          <a href="#">PNM Production Checker</a>
+        </div>
+      </li>
+      <li class="dropdown">
+        <a href="#">GigaPower</a>
+        <div class="dropdown-content">
+          <a href="#">GigaPower CSV Checker</a>
+          <a href="#">GigaPower Production Checker</a>
+        </div>
+      </li>
+    </ul>
+  </div>
   
-  <!-- Drop zones -->
+  <h1>PNM CSV Checker</h1>
+  
+  <!-- Drop Zones -->
   <div class="drop-zone" id="dropZonePNM">Drag & Drop PNM Project Tracker CSV here or click to select file</div>
   <input type="file" id="csvPNM" accept=".csv">
   
@@ -128,38 +232,42 @@
   
   <!-- Filter Controls -->
   <div id="filterControls">
-    <label>
-      Search Project Name:
-      <input type="text" id="searchProject" placeholder="Project name">
-    </label>
-    <label>
-      Filter by Status:
-      <select id="filterStatus">
-        <option value="all">All</option>
-      </select>
-    </label>
-    <label>
-      Filter by Assigned:
-      <select id="filterAssigned">
-        <option value="all">All</option>
-        <option value="landon.rodgers@txnmenergy.com">landon.rodgers@txnmenergy.com</option>
-        <option value="hunter.mooney@txnmenergy.com">hunter.mooney@txnmenergy.com</option>
-        <option value="wesley.simpson@txnmenergy.com">wesley.simpson@txnmenergy.com</option>
-        <option value="tom.devuyst@pnmresources.com">tom.devuyst@pnmresources.com</option>
-        <option value="ryan.miller@txnmenergy.com">ryan.miller@txnmenergy.com</option>
-      </select>
-    </label>
-    <button id="clearFiltersBtn">Clear Filters</button>
+    <div>
+      <label>
+        Search Project Name:
+        <input type="text" id="searchProject" placeholder="Project name">
+      </label>
+    </div>
+    <div>
+      <label>
+        Filter by Status:
+        <select id="filterStatus">
+          <option value="all">All</option>
+        </select>
+      </label>
+      <label>
+        Filter by Assigned:
+        <select id="filterAssigned">
+          <option value="all">All</option>
+          <option value="landon.rodgers@txnmenergy.com">landon.rodgers@txnmenergy.com</option>
+          <option value="hunter.mooney@txnmenergy.com">hunter.mooney@txnmenergy.com</option>
+          <option value="wesley.simpson@txnmenergy.com">wesley.simpson@txnmenergy.com</option>
+          <option value="tom.devuyst@pnmresources.com">tom.devuyst@pnmresources.com</option>
+          <option value="ryan.miller@txnmenergy.com">ryan.miller@txnmenergy.com</option>
+        </select>
+      </label>
+    </div>
+    <div>
+      <button id="clearFiltersBtn">Clear Filters</button>
+    </div>
   </div>
   
   <div id="output"></div>
   
-  <!-- Include Papa Parse from CDN -->
+  <!-- Include Papa Parse -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script>
-    ////////////////////////////////////////////////////////////////////////////
-    // 1) Excluded project keys (never include them)
-    ////////////////////////////////////////////////////////////////////////////
+    // 1) Excluded project keys
     const excludedKeys = new Set([
       "731082029 100 Joe Welch",
       "CCT-2024-040-JB1701069",
@@ -199,9 +307,7 @@
       "Trouble Truck Checklist"
     ].map(s => s.trim()));
 
-    ////////////////////////////////////////////////////////////////////////////
     // 2) SPIDAmin "Assigned" email check
-    ////////////////////////////////////////////////////////////////////////////
     const spidaminEmailList = new Set([
       "landon.rodgers@txnmenergy.com",
       "hunter.mooney@txnmenergy.com",
@@ -210,9 +316,7 @@
       "ryan.miller@txnmenergy.com"
     ]);
 
-    ////////////////////////////////////////////////////////////////////////////
     // 3) Trello "Members" mapping for CSV export
-    ////////////////////////////////////////////////////////////////////////////
     const arcfmTechMap = {
       "collinsmith94": "COLLIN SMITH",
       "amritthapa11":  "ARMIT THAPA"
@@ -222,9 +326,7 @@
       "randayshahanson": "RANDAYSHA HANSON"
     };
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 4) Tracker definitions & field mappings.
-    ////////////////////////////////////////////////////////////////////////////
+    // 4) Tracker definitions & field mappings
     const keyColumns = {
       pnm: "PROJECT NAME (SPIDAMIN)",
       trello: "Card Name",
@@ -264,9 +366,7 @@
       { label: "Assigned", pnm: "ADMIN ASSIGNED", trello: "", spidamin: "Assigned" }
     ];
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 5) Date reformatting for Trello dates.
-    ////////////////////////////////////////////////////////////////////////////
+    // 5) Date reformatting for Trello dates
     function maybeReformatTrelloDate(val) {
       if (!val) return val;
       if (/^\d{4}-\d{2}-\d{2}T/.test(val)) {
@@ -288,9 +388,7 @@
       return val;
     }
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 6) For filtering, get Assigned value from SPIDAmin only.
-    ////////////////////////////////////////////////////////////////////////////
+    // 6) For filtering, use SPIDAmin's Assigned only.
     function getGroupAssigned(group) {
       if (group.spidamin && group.spidamin["Assigned"]) {
         return group.spidamin["Assigned"].trim().toLowerCase();
@@ -298,9 +396,7 @@
       return "";
     }
 
-    ////////////////////////////////////////////////////////////////////////////
     // 7) Drag & Drop Setup
-    ////////////////////////////////////////////////////////////////////////////
     const dropZonePNM = document.getElementById('dropZonePNM');
     const csvPNMInput = document.getElementById('csvPNM');
     const dropZoneTrello = document.getElementById('dropZoneTrello');
@@ -325,6 +421,7 @@
           const file = e.dataTransfer.files[0];
           fileSetter(file);
           dropZone.textContent = file.name;
+          dropZone.classList.add('file-dropped');
         }
       });
       fileInput.addEventListener('change', () => {
@@ -332,6 +429,7 @@
           const file = fileInput.files[0];
           fileSetter(file);
           dropZone.textContent = file.name;
+          dropZone.classList.add('file-dropped');
         }
       });
     }
@@ -339,9 +437,7 @@
     setupDropZone(dropZoneTrello, csvTrelloInput, file => fileTrelloFile = file);
     setupDropZone(dropZoneSpidamin, csvSpidaminInput, file => fileSpidaminFile = file);
 
-    ////////////////////////////////////////////////////////////////////////////
     // 8) Parsing & Grouping
-    ////////////////////////////////////////////////////////////////////////////
     let filePNMFile = null;
     let fileTrelloFile = null;
     let fileSpidaminFile = null;
@@ -415,9 +511,7 @@
       downloadWhatsupBtn.style.display = "inline-block";
     }
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 9) Populate the Status Drop Down (from SPIDAmin "Status")
-    ////////////////////////////////////////////////////////////////////////////
+    // 9) Populate Status Drop Down (from SPIDAmin "Status")
     function populateStatusDropdown() {
       const statusSet = new Set();
       for (const key in globalGroups) {
@@ -440,9 +534,7 @@
       });
     }
 
-    ////////////////////////////////////////////////////////////////////////////
     // 10) Filtering and HTML Display (show only Project Name, Status, Assigned)
-    ////////////////////////////////////////////////////////////////////////////
     function getGroupStatus(group) {
       if (group.pnm && group.pnm["STATUS"]) {
         return group.pnm["STATUS"].trim().toLowerCase();
@@ -477,7 +569,6 @@
           spStatus = group.spidamin["Status"].trim().toLowerCase();
         }
         if (filterStatus !== "all" && spStatus !== filterStatus) continue;
-        // For Assigned, only use SPIDAmin's Assigned field.
         let groupAssigned = "";
         if (group.spidamin && group.spidamin["Assigned"]) {
           groupAssigned = group.spidamin["Assigned"].trim().toLowerCase();
@@ -531,7 +622,6 @@
 
     ////////////////////////////////////////////////////////////////////////////
     // 11) CSV Exports (Comparison CSV & Simple CSV remain unchanged)
-    ////////////////////////////////////////////////////////////////////////////
     function escapeCSV(value) {
       if (value == null) return "";
       value = value.toString();
@@ -703,13 +793,12 @@
     });
 
     // 11) Whatsup CSV Export
-    // Format: Project Name, SPIDAmin Assigned, What is missing?
     function getWhatsupMessage(group) {
       // Rule 1: If no PNM row exists:
       if (!group.pnm) {
         return "Not added to PNM Tracker yet";
       }
-      // Rule 2: If PNM exists but its Assigned field is empty and a Trello row exists:
+      // Rule 2: If PNM exists but its Assigned field is empty and Trello exists:
       let pnmAssigned = "";
       if (group.pnm && group.pnm["ADMIN ASSIGNED"]) {
         pnmAssigned = group.pnm["ADMIN ASSIGNED"].trim();
@@ -739,7 +828,7 @@
           return "Permit has not made it to Staking";
         }
       }
-      // Rule 4: Otherwise, assume nothing is missing.
+      // Otherwise, nothing is missing.
       return "";
     }
 
@@ -747,7 +836,6 @@
       if (!globalGroups) return;
       let csvRows = [];
       csvRows.push(["Project Name", "SPIDAmin Assigned", "What is missing?"].join(","));
-      // Export for all projects (no filtering by "GIG" here)
       const keys = Object.keys(globalGroups).sort((a, b) => a.localeCompare(b));
       keys.forEach(key => {
         const group = globalGroups[key];
