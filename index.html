@@ -230,6 +230,9 @@
   <button id="downloadSimpleCSVBtn" style="display:none;">Download Simple CSV</button>
   <button id="downloadWhatsupBtn" style="display:none;">Export Whatsup</button>
   
+  <!-- NEW: Download Filtered CSV button -->
+  <button id="downloadFilteredBtn" style="display:none;">Download Filtered CSV</button>
+  
   <!-- Filter Controls -->
   <div id="filterControls">
     <div>
@@ -366,7 +369,7 @@
       { label: "Assigned", pnm: "ADMIN ASSIGNED", trello: "", spidamin: "Assigned" }
     ];
 
-    // 5) Date reformatting for Trello dates
+    // 5) Date reformatting for Trello dates.
     function maybeReformatTrelloDate(val) {
       if (!val) return val;
       if (/^\d{4}-\d{2}-\d{2}T/.test(val)) {
@@ -445,8 +448,12 @@
     const downloadCSVBtn = document.getElementById('downloadCSVBtn');
     const downloadSimpleCSVBtn = document.getElementById('downloadSimpleCSVBtn');
     const downloadWhatsupBtn = document.getElementById('downloadWhatsupBtn');
+    const downloadFilteredBtn = document.getElementById('downloadFilteredBtn'); // new button
     const outputDiv = document.getElementById('output');
     let globalGroups = null;
+
+    // We'll store the filtered keys in this array so we can export them easily
+    let filteredKeys = [];
 
     compareBtn.addEventListener('click', () => {
       if (!filePNMFile || !fileTrelloFile || !fileSpidaminFile) {
@@ -534,7 +541,7 @@
       });
     }
 
-    // 10) Filtering and HTML Display (show only Project Name, Status, Assigned)
+    // 10) Filtering and HTML Display
     function getGroupStatus(group) {
       if (group.pnm && group.pnm["STATUS"]) {
         return group.pnm["STATUS"].trim().toLowerCase();
@@ -554,6 +561,7 @@
 
     function displayGroups(groups) {
       outputDiv.innerHTML = "";
+      filteredKeys = []; // reset
       const searchProj = document.getElementById("searchProject").value.trim().toLowerCase();
       const filterStatus = document.getElementById("filterStatus").value;
       const filterAssigned = document.getElementById("filterAssigned").value;
@@ -574,7 +582,9 @@
           groupAssigned = group.spidamin["Assigned"].trim().toLowerCase();
         }
         if (filterAssigned !== "all" && groupAssigned !== filterAssigned.toLowerCase()) continue;
+        // Passed all filters -> display it
         displayedCount++;
+        filteredKeys.push(key); // store in array for export
         const groupDiv = document.createElement("div");
         groupDiv.className = "group";
         const header = document.createElement("h2");
@@ -605,6 +615,12 @@
         groupDiv.appendChild(table);
         outputDiv.appendChild(groupDiv);
       }
+      // If we have at least one displayed project, show the "Download Filtered CSV" button
+      if (displayedCount > 0) {
+        downloadFilteredBtn.style.display = "inline-block";
+      } else {
+        downloadFilteredBtn.style.display = "none";
+      }
       if (displayedCount === 0) {
         outputDiv.textContent = "No matching project keys were found (or all are excluded).";
       }
@@ -630,6 +646,8 @@
       }
       return value;
     }
+
+    // Comparison CSV
     downloadCSVBtn.addEventListener('click', () => {
       if (!globalGroups) return;
       let csvRows = [];
@@ -668,6 +686,8 @@
       link.click();
       document.body.removeChild(link);
     });
+
+    // Simple CSV
     downloadSimpleCSVBtn.addEventListener('click', () => {
       if (!globalGroups) return;
       let csvRows = [];
@@ -792,13 +812,49 @@
       document.body.removeChild(link);
     });
 
-    // 11) Whatsup CSV Export
+    // 12) Download Filtered CSV with columns: 
+    // Project Name, SPIDAmin Status, PNM Status, Trello Status
+    downloadFilteredBtn.addEventListener('click', () => {
+      if (!globalGroups) return;
+      if (filteredKeys.length === 0) {
+        alert("No filtered data to export.");
+        return;
+      }
+      let csvRows = [];
+      // Header row
+      csvRows.push(["Project Name","SPIDAmin Status","PNM Status","Trello Status"].join(","));
+      // Build rows from the filtered keys
+      for (const key of filteredKeys) {
+        const group = globalGroups[key];
+        let spidaminStatus = group.spidamin && group.spidamin["Status"] ? group.spidamin["Status"].trim() : "";
+        let pnmStatus = group.pnm && group.pnm["STATUS"] ? group.pnm["STATUS"].trim() : "";
+        let trelloStatus = group.trello && group.trello["List Name"] ? group.trello["List Name"].trim() : "";
+        csvRows.push([
+          escapeCSV(key),
+          escapeCSV(spidaminStatus),
+          escapeCSV(pnmStatus),
+          escapeCSV(trelloStatus)
+        ].join(","));
+      }
+      const csvString = csvRows.join("\n");
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "filtered_data.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // 13) Whatsup CSV Export
     function getWhatsupMessage(group) {
-      // Rule 1: If no PNM row exists:
+      // If no PNM row exists:
       if (!group.pnm) {
         return "Not added to PNM Tracker yet";
       }
-      // Rule 2: If PNM exists but its Assigned field is empty and Trello exists:
+      // If PNM exists but its Assigned field is empty and Trello exists:
       let pnmAssigned = "";
       if (group.pnm && group.pnm["ADMIN ASSIGNED"]) {
         pnmAssigned = group.pnm["ADMIN ASSIGNED"].trim();
@@ -815,7 +871,7 @@
           return "Permit has not made it to Staking";
         }
       }
-      // Rule 3: If no Trello row exists:
+      // If no Trello row exists:
       if (!group.trello) {
         let spStatus = "";
         if (group.spidamin && group.spidamin["Status"]) {
@@ -828,7 +884,6 @@
           return "Permit has not made it to Staking";
         }
       }
-      // Otherwise, nothing is missing.
       return "";
     }
 
