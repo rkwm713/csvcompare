@@ -73,13 +73,17 @@
   <h1>CSV Tracker Comparator</h1>
   <p>
     Upload the three CSV files below by dragging and dropping them (or clicking the area).
-    The tool groups rows by the common project key:
     <br>
-    • PNM Tracker: <strong>PROJECT NAME (SPIDAMIN)</strong> (headers start at row 2)
-    <br>
-    • Trello Tracker: <strong>Card Name</strong>
-    <br>
-    • SPIDAmin Tracker: <strong>Project</strong>
+    <strong>Notes:</strong>
+    <ul>
+      <li><em>PNM CSV:</em> First row is skipped so headers start at row 2.</li>
+      <li><em>Project Key grouping:</em></li>
+      <ul>
+        <li>PNM Tracker: <strong>PROJECT NAME (SPIDAMIN)</strong></li>
+        <li>Trello Tracker: <strong>Card Name</strong></li>
+        <li>SPIDAmin Tracker: <strong>Project</strong></li>
+      </ul>
+    </ul>
   </p>
   
   <!-- Drop zone for PNM CSV -->
@@ -95,14 +99,17 @@
   <input type="file" id="csvSpidamin" accept=".csv">
   
   <button id="compareBtn">Compare Trackers</button>
+  
+  <!-- Two export buttons -->
   <button id="downloadCSVBtn" style="display:none;">Download Comparison CSV</button>
+  <button id="downloadSimpleCSVBtn" style="display:none;">Download Simple CSV</button>
   
   <div id="output"></div>
   
   <!-- Include Papa Parse from CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script>
-    // Global file storage
+    // Global file references
     let filePNMFile = null;
     let fileTrelloFile = null;
     let fileSpidaminFile = null;
@@ -114,8 +121,8 @@
       spidamin: "Project"
     };
 
-    // Define field mappings for comparison.
-    // Each mapping defines a label and the corresponding CSV column names for each tracker.
+    // Define field mappings for the main "Comparison CSV" export
+    // and for the on-screen comparison table.
     const fieldMappings = [
       { label: "Project Name", pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
       { label: "WO #", pnm: "PNM WO #", trello: "W.O. #" },
@@ -131,7 +138,23 @@
       { label: "Status", pnm: "STATUS", trello: "List Name", spidamin: "Status" }
     ];
 
-    // Get drop zones and file inputs.
+    // Define field mappings for the "Simple CSV" export
+    // with columns: CSVs, Project Name, Status, ArcFM Start, ArcFM End, Staking Count,
+    //              TT Count, Sent to Scheduling, Added to Schedule, Construction Completed
+    // We'll map them for each tracker (PNM/Trello/SPIDAmin).
+    const simpleCSVFields = {
+      projectName:  { pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
+      status:       { pnm: "STATUS", trello: "List Name", spidamin: "Status" },
+      arcFMStart:   { pnm: "ARCFM DESIGN START DATE", trello: "ArcFM Start" },
+      arcFMEnd:     { pnm: "ARCFM DESIGN END DATE", trello: "ArcFM Finished" },
+      stakingCount: { pnm: "STAKING POLE COUNT", trello: "Staking Site Count" },
+      ttCount:      { pnm: "TROUBLE TRUCK POLE COUNT", trello: "TT Site Count" },
+      sentToSched:  { pnm: "SENT TO SCHEDULING DATE", trello: "Sent to Scheduling" },
+      addedToSched: { pnm: "ADDED TO SCHEDULE DATE", trello: "Added to Schedule" },
+      constComplete:{ pnm: "PNM CONSTRUCTION COMPLETE DATE", trello: "Construction Completed" }
+    };
+
+    // Get references to drop zones, file inputs, and buttons
     const dropZonePNM = document.getElementById('dropZonePNM');
     const csvPNMInput = document.getElementById('csvPNM');
 
@@ -143,11 +166,12 @@
 
     const compareBtn = document.getElementById('compareBtn');
     const downloadCSVBtn = document.getElementById('downloadCSVBtn');
+    const downloadSimpleCSVBtn = document.getElementById('downloadSimpleCSVBtn');
     const outputDiv = document.getElementById('output');
 
-    let globalGroups = null; // To store the grouped data for CSV export.
+    let globalGroups = null; // To store the grouped data for CSV exports.
 
-    // --- Drag & Drop & Click-to-Select functionality ---
+    // --- Drag & Drop & Click-to-Select Setup ---
     function setupDropZone(dropZone, fileInput, fileSetter) {
       dropZone.addEventListener('click', () => fileInput.click());
       dropZone.addEventListener('dragover', (e) => {
@@ -176,7 +200,7 @@
       });
     }
 
-    // Setup drop zones for each tracker.
+    // Setup drop zones for each tracker
     setupDropZone(dropZonePNM, csvPNMInput, file => filePNMFile = file);
     setupDropZone(dropZoneTrello, csvTrelloInput, file => fileTrelloFile = file);
     setupDropZone(dropZoneSpidamin, csvSpidaminInput, file => fileSpidaminFile = file);
@@ -188,7 +212,7 @@
         return;
       }
 
-      // Parse PNM CSV and skip the first row.
+      // Parse PNM CSV and skip the first row
       Papa.parse(filePNMFile, {
         header: true,
         beforeFirstChunk: function(chunk) {
@@ -233,7 +257,7 @@
 
       function addRow(row, tracker) {
         let keyVal = (row[keyColumns[tracker]] || "").trim();
-        if (!keyVal) return; // Skip rows without a key.
+        if (!keyVal) return; // Skip rows without a key
         if (!groups[keyVal]) {
           groups[keyVal] = { pnm: null, trello: null, spidamin: null };
         }
@@ -246,20 +270,59 @@
 
       globalGroups = groups;
       displayGroups(groups);
+      // Show export buttons
       downloadCSVBtn.style.display = "inline-block";
+      downloadSimpleCSVBtn.style.display = "inline-block";
     }
 
-    // Create an HTML table for each project group.
+    // Extract a "Status" to help with sorting
+    // Priority: PNM's STATUS -> Trello's List Name -> SPIDAmin's Status
+    function getGroupStatus(group) {
+      let status = "";
+      if (group.pnm && group.pnm["STATUS"]) {
+        status = group.pnm["STATUS"].trim().toLowerCase();
+      } else if (group.trello && group.trello["List Name"]) {
+        status = group.trello["List Name"].trim().toLowerCase();
+      } else if (group.spidamin && group.spidamin["Status"]) {
+        status = group.spidamin["Status"].trim().toLowerCase();
+      }
+      return status;
+    }
+
+    // Sort the groups by project key (alphabetically), then by status.
+    function sortKeysByProjectAndStatus(groups) {
+      let keys = Object.keys(groups);
+      keys.sort((a, b) => {
+        let aLower = a.toLowerCase();
+        let bLower = b.toLowerCase();
+        if (aLower < bLower) return -1;
+        if (aLower > bLower) return 1;
+        // If the project keys are identical, sort by status
+        let statusA = getGroupStatus(groups[a]);
+        let statusB = getGroupStatus(groups[b]);
+        if (statusA < statusB) return -1;
+        if (statusA > statusB) return 1;
+        return 0;
+      });
+      return keys;
+    }
+
+    // Create an HTML table for each project group, sorted by project key and status.
     function displayGroups(groups) {
       outputDiv.innerHTML = "";
-      let groupCount = 0;
-      for (let key in groups) {
-        groupCount++;
+      let keys = sortKeysByProjectAndStatus(groups);
+
+      if (keys.length === 0) {
+        outputDiv.textContent = "No matching project keys were found.";
+        return;
+      }
+
+      keys.forEach(key => {
         const group = groups[key];
         const groupDiv = document.createElement("div");
         groupDiv.className = "group";
         const header = document.createElement("h2");
-        header.textContent = `Project: ${key}`;
+        header.textContent = `Project: ${key} | Status: ${getGroupStatus(group) || "N/A"}`;
         groupDiv.appendChild(header);
 
         const table = document.createElement("table");
@@ -295,11 +358,7 @@
         table.appendChild(tbody);
         groupDiv.appendChild(table);
         outputDiv.appendChild(groupDiv);
-      }
-
-      if (groupCount === 0) {
-        outputDiv.textContent = "No matching project keys were found.";
-      }
+      });
     }
 
     // Helper function to escape CSV values.
@@ -312,14 +371,16 @@
       return value;
     }
 
-    // CSV export functionality.
+    // --- 1) "Comparison CSV" export (existing) ---
     downloadCSVBtn.addEventListener('click', () => {
       if (!globalGroups) return;
       let csvRows = [];
-      // Header row.
+      // Header row
       csvRows.push(["Project Key", "Field", "PNM Value", "Trello Value", "SPIDAmin Value", "Match"].join(","));
 
-      for (let key in globalGroups) {
+      let keys = sortKeysByProjectAndStatus(globalGroups);
+
+      keys.forEach(key => {
         const group = globalGroups[key];
         fieldMappings.forEach(mapping => {
           let pnmVal = group.pnm && mapping.pnm ? (group.pnm[mapping.pnm] || "").trim() : "";
@@ -341,7 +402,7 @@
             escapeCSV(match)
           ].join(","));
         });
-      }
+      });
 
       const csvString = csvRows.join("\n");
       const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
@@ -349,6 +410,116 @@
       const link = document.createElement("a");
       link.setAttribute("href", url);
       link.setAttribute("download", "tracker_comparison.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // --- 2) "Simple CSV" export (new) ---
+    // Format (3 rows per project: "PNM Value", "Trello Value", "SPIDAmin Value"):
+    // CSVs | Project Name | Status | ArcFM Start | ArcFM End | Staking Count | TT Count | Sent to Scheduling | Added to Schedule | Construction Completed
+    downloadSimpleCSVBtn.addEventListener('click', () => {
+      if (!globalGroups) return;
+      let csvRows = [];
+      // Header row
+      csvRows.push([
+        "CSVs",
+        "Project Name",
+        "Status",
+        "ArcFM Start",
+        "ArcFM End",
+        "Staking Count",
+        "TT Count",
+        "Sent to Scheduling",
+        "Added to Schedule",
+        "Construction Completed"
+      ].join(","));
+
+      let keys = sortKeysByProjectAndStatus(globalGroups);
+
+      // Helper to get a field from the correct row
+      function getVal(row, columnName) {
+        if (!row || !columnName) return "";
+        return (row[columnName] || "").trim();
+      }
+
+      keys.forEach(key => {
+        const group = globalGroups[key];
+
+        // We'll create up to three rows: one for PNM, one for Trello, one for SPIDAmin.
+        // If a tracker row is missing, that row will just have blank fields.
+        
+        // 1) PNM
+        if (group.pnm) {
+          csvRows.push([
+            "PNM Value",
+            escapeCSV(getVal(group.pnm, simpleCSVFields.projectName.pnm)),
+            escapeCSV(getVal(group.pnm, simpleCSVFields.status.pnm)),
+            escapeCSV(getVal(group.pnm, simpleCSVFields.arcFMStart.pnm)),
+            escapeCSV(getVal(group.pnm, simpleCSVFields.arcFMEnd.pnm)),
+            escapeCSV(getVal(group.pnm, simpleCSVFields.stakingCount.pnm)),
+            escapeCSV(getVal(group.pnm, simpleCSVFields.ttCount.pnm)),
+            escapeCSV(getVal(group.pnm, simpleCSVFields.sentToSched.pnm)),
+            escapeCSV(getVal(group.pnm, simpleCSVFields.addedToSched.pnm)),
+            escapeCSV(getVal(group.pnm, simpleCSVFields.constComplete.pnm))
+          ].join(","));
+        } else {
+          // If there's no PNM row, you can decide if you want to push an empty row or skip it.
+          // For completeness, let's push an empty row:
+          csvRows.push([
+            "PNM Value","","","","","","","","",""
+          ].join(","));
+        }
+
+        // 2) Trello
+        if (group.trello) {
+          csvRows.push([
+            "Trello Value",
+            escapeCSV(getVal(group.trello, simpleCSVFields.projectName.trello)),
+            escapeCSV(getVal(group.trello, simpleCSVFields.status.trello)),
+            escapeCSV(getVal(group.trello, simpleCSVFields.arcFMStart.trello)),
+            escapeCSV(getVal(group.trello, simpleCSVFields.arcFMEnd.trello)),
+            escapeCSV(getVal(group.trello, simpleCSVFields.stakingCount.trello)),
+            escapeCSV(getVal(group.trello, simpleCSVFields.ttCount.trello)),
+            escapeCSV(getVal(group.trello, simpleCSVFields.sentToSched.trello)),
+            escapeCSV(getVal(group.trello, simpleCSVFields.addedToSched.trello)),
+            escapeCSV(getVal(group.trello, simpleCSVFields.constComplete.trello))
+          ].join(","));
+        } else {
+          csvRows.push([
+            "Trello Value","","","","","","","","",""
+          ].join(","));
+        }
+
+        // 3) SPIDAmin
+        if (group.spidamin) {
+          csvRows.push([
+            "SPIDAmin Value",
+            escapeCSV(getVal(group.spidamin, simpleCSVFields.projectName.spidamin)),
+            escapeCSV(getVal(group.spidamin, simpleCSVFields.status.spidamin)),
+            // ArcFM Start/End are not typically in SPIDAmin, but included for completeness
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ].join(","));
+        } else {
+          csvRows.push([
+            "SPIDAmin Value","","","","","","","","",""
+          ].join(","));
+        }
+      });
+
+      const csvString = csvRows.join("\n");
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "tracker_simple.csv");
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
