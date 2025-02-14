@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CSV Tracker Comparator</title>
+  <title>ServOS CSV Checker</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -80,18 +80,7 @@
   </style>
 </head>
 <body>
-  <h1>CSV Tracker Comparator</h1>
-  <p>
-    Upload the three CSV files below by dragging and dropping them (or clicking the area).  
-    <strong>Key Points:</strong>
-    <ul>
-      <li><em>PNM CSV:</em> The first row is skipped so headers start at row 2.</li>
-      <li><em>Excluded Projects:</em> Certain project keys (listed in code) are never included in outputs.</li>
-      <li><em>SPIDAmin Email Check:</em> If <code>Assigned</code> in SPIDAmin matches specific emails, that email is added as a new column in the Simple CSV.</li>
-      <li><em>Trello Members Check:</em> If the Trello row’s <code>Members</code> contains specific usernames, new columns for <code>ARCFM TECH</code> and <code>ADMIN ASSIGNED</code> are added in the Simple CSV.</li>
-      <li><em>Date Reformat (Trello only):</em> Any date like <code>YYYY-MM-DDTHH:MM:SS.sssZ</code> becomes <code>MM-DD-YYYY</code>.</li>
-    </ul>
-  </p>
+  <h1>ServOS CSV Checker</h1>
   
   <!-- Drop zones -->
   <div class="drop-zone" id="dropZonePNM">Drag & Drop PNM Project Tracker CSV here or click to select file</div>
@@ -115,7 +104,9 @@
     </label>
     <label>
       Filter by Status:
-      <input type="text" id="filterStatus" placeholder="Status">
+      <select id="filterStatus">
+        <option value="all">All</option>
+      </select>
     </label>
     <label>
       Filter by Assigned:
@@ -130,7 +121,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script>
     ////////////////////////////////////////////////////////////////////////////
-    // 1) Excluded project keys (never include them in outputs).
+    // 1) Excluded project keys (never include them in outputs)
     ////////////////////////////////////////////////////////////////////////////
     const excludedKeys = new Set([
       "731082029 100 Joe Welch",
@@ -232,7 +223,7 @@
       constComplete:{ pnm: "PNM CONSTRUCTION COMPLETE DATE", trello: "Construction Completed" }
     };
 
-    // For the HTML view we show only three fields.
+    // For the HTML view, show only three fields.
     const htmlFieldMappings = [
       { label: "Project Name", pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
       { label: "Status", pnm: "STATUS", trello: "List Name", spidamin: "Status" },
@@ -254,7 +245,7 @@
       return val;
     }
 
-    // Helper: get a value from a row (applying Trello date reformat if needed)
+    // Helper: get a value from a row (with Trello date reformatting)
     function getValue(tracker, row, columnName) {
       if (!row || !columnName) return "";
       let val = (row[columnName] || "").trim();
@@ -265,7 +256,7 @@
     }
 
     ////////////////////////////////////////////////////////////////////////////
-    // 6) Helper for filtering: get the Assigned value from a group.
+    // 6) Helper for filtering – get the Assigned value from a group.
     ////////////////////////////////////////////////////////////////////////////
     function getGroupAssigned(group) {
       if (group.pnm && group.pnm["ADMIN ASSIGNED"]) {
@@ -385,13 +376,39 @@
       trelloData.forEach(row => addRow(row, "trello"));
       spidaminData.forEach(row => addRow(row, "spidamin"));
       globalGroups = groups;
+      populateStatusDropdown();
       displayGroups(groups);
       downloadCSVBtn.style.display = "inline-block";
       downloadSimpleCSVBtn.style.display = "inline-block";
     }
 
     ////////////////////////////////////////////////////////////////////////////
-    // 9) Filtering and HTML Display (only three fields: Project Name, Status, Assigned)
+    // 9) Populate the Status Drop Down (from SPIDAmin Tracker "Status" values)
+    ////////////////////////////////////////////////////////////////////////////
+    function populateStatusDropdown() {
+      const statusSet = new Set();
+      for (const key in globalGroups) {
+        const group = globalGroups[key];
+        if (group.spidamin && group.spidamin["Status"]) {
+          let status = group.spidamin["Status"].trim();
+          if (status) {
+            statusSet.add(status);
+          }
+        }
+      }
+      const statusArray = Array.from(statusSet).sort();
+      const selectEl = document.getElementById("filterStatus");
+      selectEl.innerHTML = '<option value="all">All</option>';
+      statusArray.forEach(status => {
+        const opt = document.createElement("option");
+        opt.value = status.toLowerCase();
+        opt.textContent = status;
+        selectEl.appendChild(opt);
+      });
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // 10) Filtering and HTML Display (only three fields: Project Name, Status, Assigned)
     ////////////////////////////////////////////////////////////////////////////
     function getGroupStatus(group) {
       if (group.pnm && group.pnm["STATUS"]) {
@@ -422,25 +439,28 @@
 
     function displayGroups(groups) {
       outputDiv.innerHTML = "";
-      let searchProj = document.getElementById("searchProject").value.trim().toLowerCase();
-      let filterStatus = document.getElementById("filterStatus").value.trim().toLowerCase();
-      let filterAssigned = document.getElementById("filterAssigned").value.trim().toLowerCase();
+      const searchProj = document.getElementById("searchProject").value.trim().toLowerCase();
+      const filterStatus = document.getElementById("filterStatus").value;
+      const filterAssigned = document.getElementById("filterAssigned").value.trim().toLowerCase();
       let allKeys = sortKeysByProjectAndStatus(groups);
       let displayedCount = 0;
       for (const key of allKeys) {
-        if (excludedKeys.has(key)) continue;
-        // Apply project name filter
+        // Only include project keys that start with "GIG"
+        if (!key.toUpperCase().startsWith("GIG")) continue;
         if (searchProj && !key.toLowerCase().includes(searchProj)) continue;
         const group = groups[key];
-        let groupStatus = getGroupStatus(group);
-        if (filterStatus && !groupStatus.includes(filterStatus)) continue;
+        let spStatus = "";
+        if (group.spidamin && group.spidamin["Status"]) {
+          spStatus = group.spidamin["Status"].trim().toLowerCase();
+        }
+        if (filterStatus !== "all" && spStatus !== filterStatus) continue;
         let groupAssigned = getGroupAssigned(group);
         if (filterAssigned && !groupAssigned.includes(filterAssigned)) continue;
         displayedCount++;
         const groupDiv = document.createElement("div");
         groupDiv.className = "group";
         const header = document.createElement("h2");
-        header.textContent = `Project: ${key} | Status: ${groupStatus || "N/A"}`;
+        header.textContent = `Project: ${key} | Status: ${spStatus || "N/A"}`;
         groupDiv.appendChild(header);
         const table = document.createElement("table");
         const thead = document.createElement("thead");
@@ -472,19 +492,18 @@
       }
     }
 
-    // Attach real-time filter event listeners
     document.getElementById("searchProject").addEventListener("input", () => displayGroups(globalGroups));
-    document.getElementById("filterStatus").addEventListener("input", () => displayGroups(globalGroups));
+    document.getElementById("filterStatus").addEventListener("change", () => displayGroups(globalGroups));
     document.getElementById("filterAssigned").addEventListener("input", () => displayGroups(globalGroups));
     document.getElementById("clearFiltersBtn").addEventListener("click", () => {
       document.getElementById("searchProject").value = "";
-      document.getElementById("filterStatus").value = "";
+      document.getElementById("filterStatus").value = "all";
       document.getElementById("filterAssigned").value = "";
       displayGroups(globalGroups);
     });
 
     ////////////////////////////////////////////////////////////////////////////
-    // 10) CSV Exports (Comparison CSV & Simple CSV remain unchanged)
+    // 11) CSV Exports (Comparison CSV & Simple CSV remain unchanged)
     ////////////////////////////////////////////////////////////////////////////
     function escapeCSV(value) {
       if (value == null) return "";
@@ -494,7 +513,6 @@
       }
       return value;
     }
-    // Comparison CSV export (unchanged)
     downloadCSVBtn.addEventListener('click', () => {
       if (!globalGroups) return;
       let csvRows = [];
@@ -533,7 +551,6 @@
       link.click();
       document.body.removeChild(link);
     });
-    // Simple CSV export (unchanged)
     downloadSimpleCSVBtn.addEventListener('click', () => {
       if (!globalGroups) return;
       let csvRows = [];
