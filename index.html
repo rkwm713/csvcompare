@@ -110,7 +110,14 @@
     </label>
     <label>
       Filter by Assigned:
-      <input type="text" id="filterAssigned" placeholder="Assigned">
+      <select id="filterAssigned">
+        <option value="all">All</option>
+        <option value="landon.rodgers@txnmenergy.com">landon.rodgers@txnmenergy.com</option>
+        <option value="hunter.mooney@txnmenergy.com">hunter.mooney@txnmenergy.com</option>
+        <option value="wesley.simpson@txnmenergy.com">wesley.simpson@txnmenergy.com</option>
+        <option value="tom.devuyst@pnmresources.com">tom.devuyst@pnmresources.com</option>
+        <option value="ryan.miller@txnmenergy.com">ryan.miller@txnmenergy.com</option>
+      </select>
     </label>
     <button id="clearFiltersBtn">Clear Filters</button>
   </div>
@@ -441,7 +448,7 @@
       outputDiv.innerHTML = "";
       const searchProj = document.getElementById("searchProject").value.trim().toLowerCase();
       const filterStatus = document.getElementById("filterStatus").value;
-      const filterAssigned = document.getElementById("filterAssigned").value.trim().toLowerCase();
+      const filterAssigned = document.getElementById("filterAssigned").value;
       let allKeys = sortKeysByProjectAndStatus(groups);
       let displayedCount = 0;
       for (const key of allKeys) {
@@ -455,7 +462,7 @@
         }
         if (filterStatus !== "all" && spStatus !== filterStatus) continue;
         let groupAssigned = getGroupAssigned(group);
-        if (filterAssigned && !groupAssigned.includes(filterAssigned)) continue;
+        if (filterAssigned !== "all" && !groupAssigned.includes(filterAssigned.toLowerCase())) continue;
         displayedCount++;
         const groupDiv = document.createElement("div");
         groupDiv.className = "group";
@@ -492,13 +499,14 @@
       }
     }
 
+    // Attach filter event listeners
     document.getElementById("searchProject").addEventListener("input", () => displayGroups(globalGroups));
     document.getElementById("filterStatus").addEventListener("change", () => displayGroups(globalGroups));
-    document.getElementById("filterAssigned").addEventListener("input", () => displayGroups(globalGroups));
+    document.getElementById("filterAssigned").addEventListener("change", () => displayGroups(globalGroups));
     document.getElementById("clearFiltersBtn").addEventListener("click", () => {
       document.getElementById("searchProject").value = "";
       document.getElementById("filterStatus").value = "all";
-      document.getElementById("filterAssigned").value = "";
+      document.getElementById("filterAssigned").value = "all";
       displayGroups(globalGroups);
     });
 
