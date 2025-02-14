@@ -13,7 +13,6 @@
     h1, h2 {
       color: #333;
     }
-    /* Styles for drop zones */
     .drop-zone {
       border: 2px dashed #ccc;
       padding: 20px;
@@ -26,7 +25,6 @@
       background-color: #e8e8e8;
       border-color: #333;
     }
-    /* Hide the actual file inputs */
     input[type="file"] {
       display: none;
     }
@@ -95,6 +93,7 @@
   <button id="compareBtn">Compare Trackers</button>
   <button id="downloadCSVBtn" style="display:none;">Download Comparison CSV</button>
   <button id="downloadSimpleCSVBtn" style="display:none;">Download Simple CSV</button>
+  <button id="downloadWhatsupBtn" style="display:none;">Export Whatsup</button>
   
   <!-- Filter Controls -->
   <div id="filterControls">
@@ -127,9 +126,7 @@
   <!-- Include Papa Parse from CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script>
-    ////////////////////////////////////////////////////////////////////////////
-    // 1) Excluded project keys (never include them in outputs)
-    ////////////////////////////////////////////////////////////////////////////
+    // 1) Excluded project keys (never include them)
     const excludedKeys = new Set([
       "731082029 100 Joe Welch",
       "CCT-2024-040-JB1701069",
@@ -169,9 +166,7 @@
       "Trouble Truck Checklist"
     ].map(s => s.trim()));
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 2) SPIDAmin "Assigned" email check – if matches, add to new column in Simple CSV.
-    ////////////////////////////////////////////////////////////////////////////
+    // 2) SPIDAmin "Assigned" email check
     const spidaminEmailList = new Set([
       "landon.rodgers@txnmenergy.com",
       "hunter.mooney@txnmenergy.com",
@@ -180,9 +175,7 @@
       "ryan.miller@txnmenergy.com"
     ]);
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 3) Trello "Members" mapping for new columns in Simple CSV.
-    ////////////////////////////////////////////////////////////////////////////
+    // 3) Trello "Members" mapping for CSV export (not used in Whatsup export)
     const arcfmTechMap = {
       "collinsmith94": "COLLIN SMITH",
       "amritthapa11":  "ARMIT THAPA"
@@ -192,9 +185,7 @@
       "randayshahanson": "RANDAYSHA HANSON"
     };
 
-    ////////////////////////////////////////////////////////////////////////////
     // 4) Tracker definitions & field mappings.
-    ////////////////////////////////////////////////////////////////////////////
     const keyColumns = {
       pnm: "PROJECT NAME (SPIDAMIN)",
       trello: "Card Name",
@@ -217,7 +208,7 @@
       { label: "Status", pnm: "STATUS", trello: "List Name", spidamin: "Status" }
     ];
 
-    // Field mappings for the Simple CSV export
+    // Field mappings for the Simple CSV export (used previously)
     const simpleCSVFields = {
       projectName:  { pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
       status:       { pnm: "STATUS", trello: "List Name", spidamin: "Status" },
@@ -237,9 +228,7 @@
       { label: "Assigned", pnm: "ADMIN ASSIGNED", trello: "", spidamin: "Assigned" }
     ];
 
-    ////////////////////////////////////////////////////////////////////////////
     // 5) Date reformatting for Trello dates.
-    ////////////////////////////////////////////////////////////////////////////
     function maybeReformatTrelloDate(val) {
       if (!val) return val;
       if (/^\d{4}-\d{2}-\d{2}T/.test(val)) {
@@ -262,9 +251,7 @@
       return val;
     }
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 6) Helper for filtering – get the Assigned value from a group from SPIDAmin only.
-    ////////////////////////////////////////////////////////////////////////////
+    // 6) For filtering, get the Assigned value from SPIDAmin only.
     function getGroupAssigned(group) {
       if (group.spidamin && group.spidamin["Assigned"]) {
         return group.spidamin["Assigned"].trim().toLowerCase();
@@ -272,9 +259,7 @@
       return "";
     }
 
-    ////////////////////////////////////////////////////////////////////////////
     // 7) Drag & Drop Setup
-    ////////////////////////////////////////////////////////////////////////////
     const dropZonePNM = document.getElementById('dropZonePNM');
     const csvPNMInput = document.getElementById('csvPNM');
     const dropZoneTrello = document.getElementById('dropZoneTrello');
@@ -313,17 +298,16 @@
     setupDropZone(dropZoneTrello, csvTrelloInput, file => fileTrelloFile = file);
     setupDropZone(dropZoneSpidamin, csvSpidaminInput, file => fileSpidaminFile = file);
 
-    ////////////////////////////////////////////////////////////////////////////
     // 8) Parsing & Grouping
-    ////////////////////////////////////////////////////////////////////////////
     let filePNMFile = null;
     let fileTrelloFile = null;
     let fileSpidaminFile = null;
     const compareBtn = document.getElementById('compareBtn');
     const downloadCSVBtn = document.getElementById('downloadCSVBtn');
     const downloadSimpleCSVBtn = document.getElementById('downloadSimpleCSVBtn');
+    const downloadWhatsupBtn = document.getElementById('downloadWhatsupBtn');
     const outputDiv = document.getElementById('output');
-    let globalGroups = null; // To store grouped data for exports and filtering
+    let globalGroups = null;
 
     compareBtn.addEventListener('click', () => {
       if (!filePNMFile || !fileTrelloFile || !fileSpidaminFile) {
@@ -385,11 +369,10 @@
       displayGroups(groups);
       downloadCSVBtn.style.display = "inline-block";
       downloadSimpleCSVBtn.style.display = "inline-block";
+      downloadWhatsupBtn.style.display = "inline-block";
     }
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 9) Populate the Status Drop Down (from SPIDAmin Tracker "Status" values)
-    ////////////////////////////////////////////////////////////////////////////
+    // 9) Populate the Status Drop Down (from SPIDAmin "Status")
     function populateStatusDropdown() {
       const statusSet = new Set();
       for (const key in globalGroups) {
@@ -412,9 +395,7 @@
       });
     }
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 10) Filtering and HTML Display (only three fields: Project Name, Status, Assigned)
-    ////////////////////////////////////////////////////////////////////////////
+    // 10) Filtering and HTML Display (show only Project Name, Status, Assigned)
     function getGroupStatus(group) {
       if (group.pnm && group.pnm["STATUS"]) {
         return group.pnm["STATUS"].trim().toLowerCase();
@@ -459,7 +440,7 @@
           spStatus = group.spidamin["Status"].trim().toLowerCase();
         }
         if (filterStatus !== "all" && spStatus !== filterStatus) continue;
-        // Use only SPIDAmin tracker for Assigned filtering:
+        // For Assigned filter, use SPIDAmin only
         let groupAssigned = "";
         if (group.spidamin && group.spidamin["Assigned"]) {
           groupAssigned = group.spidamin["Assigned"].trim().toLowerCase();
@@ -512,9 +493,7 @@
       displayGroups(globalGroups);
     });
 
-    ////////////////////////////////////////////////////////////////////////////
-    // 11) CSV Exports (Comparison CSV & Simple CSV remain unchanged)
-    ////////////////////////////////////////////////////////////////////////////
+    // 10) CSV Exports for Comparison and Simple CSV (unchanged)
     function escapeCSV(value) {
       if (value == null) return "";
       value = value.toString();
@@ -679,6 +658,82 @@
       const link = document.createElement("a");
       link.setAttribute("href", url);
       link.setAttribute("download", "tracker_simple.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
+
+    // 11) Whatsup CSV Export
+    // Export CSV with columns: Project Name, SPIDAmin Assigned, What is missing?
+    function getWhatsupMessage(group) {
+      // If no PNM row exists:
+      if (!group.pnm) {
+        return "Not added to PNM Tracker yet";
+      }
+      // If PNM exists, check its Assigned field
+      let pnmAssigned = "";
+      if (group.pnm && group.pnm["ADMIN ASSIGNED"]) {
+        pnmAssigned = group.pnm["ADMIN ASSIGNED"].trim();
+      }
+      // If PNM exists and its Assigned field is filled, then assume nothing is missing.
+      if (pnmAssigned !== "") {
+        return "";
+      }
+      // Now, if PNM exists but its Assigned is missing and Trello exists:
+      if (group.trello) {
+        let spStatus = "";
+        if (group.spidamin && group.spidamin["Status"]) {
+          spStatus = group.spidamin["Status"].trim().toLowerCase();
+        }
+        // List for when we want to suggest updating the PNM assignment:
+        const list2 = ["add or remove pole(s)", "advance here to complete new pole forms", "contractor rework required", "corrections required", "exhibit not signed and uploaded", "field work - prep make ready (contractor)", "peer review (upload exhibit)", "prepare application", "review estimated cost", "review make ready", "review prelim make ready", "review project", "review updates", "start"];
+        if (list2.includes(spStatus)) {
+          return "Updated PNM Project Tracker Assignee";
+        } else {
+          return "Permit has not made it to Staking";
+        }
+      } else {
+        // If no Trello row is found:
+        let spStatus = "";
+        if (group.spidamin && group.spidamin["Status"]) {
+          spStatus = group.spidamin["Status"].trim().toLowerCase();
+        }
+        const list1 = ["added to schedule", "attaching", "create wo, upload lcr", "exhibit not signed and uploaded", "holding for scheduling", "pnm construction", "proceed to attach"];
+        if (list1.includes(spStatus)) {
+          return "Tracker Update Needed";
+        } else {
+          return "Permit has not made it to Staking";
+        }
+      }
+    }
+
+    downloadWhatsupBtn.addEventListener('click', () => {
+      if (!globalGroups) return;
+      let csvRows = [];
+      csvRows.push(["Project Name", "SPIDAmin Assigned", "What is missing?"].join(","));
+      // Export for all projects (no filtering by "GIG" here)
+      const keys = Object.keys(globalGroups).sort((a, b) => a.localeCompare(b));
+      keys.forEach(key => {
+        const group = globalGroups[key];
+        // Get SPIDAmin Assigned (from SPIDAmin Tracker)
+        let spAssigned = "";
+        if (group.spidamin && group.spidamin["Assigned"]) {
+          spAssigned = group.spidamin["Assigned"].trim();
+        }
+        let whatsup = getWhatsupMessage(group);
+        csvRows.push([
+          escapeCSV(key),
+          escapeCSV(spAssigned),
+          escapeCSV(whatsup)
+        ].join(","));
+      });
+      const csvString = csvRows.join("\n");
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "Whatsup.csv");
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
