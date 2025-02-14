@@ -77,8 +77,8 @@
     <ul>
       <li><em>PNM CSV:</em> The first row is skipped so headers start at row 2.</li>
       <li><em>Excluded Projects:</em> Certain project keys (listed in code) are never included in outputs.</li>
-      <li><em>SPIDAmin Email Check:</em> If <code>Assigned</code> in SPIDAmin matches specific emails, show in the new <code>SPIDAmin Assigned Email</code> column in the Simple CSV.</li>
-      <li><em>Trello Members Check:</em> If the Trello row's <code>Members</code> contains special usernames, fill in new columns <code>ARCFM TECH</code> or <code>ADMIN ASSIGNED</code> in the Simple CSV.</li>
+      <li><em>SPIDAmin Email Check:</em> If <code>Assigned</code> in SPIDAmin matches specific emails, that email is added as a new column in the Simple CSV.</li>
+      <li><em>Trello Members Check:</em> If the Trello row’s <code>Members</code> contains specific usernames, new columns for <code>ARCFM TECH</code> and <code>ADMIN ASSIGNED</code> are added in the Simple CSV.</li>
       <li><em>Date Reformat (Trello only):</em> Any date like <code>YYYY-MM-DDTHH:MM:SS.sssZ</code> becomes <code>MM-DD-YYYY</code>.</li>
     </ul>
   </p>
@@ -107,7 +107,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script>
     ////////////////////////////////////////////////////////////////////////////
-    // 1) Excluded project keys (never include them in HTML or CSV outputs).
+    // 1) Excluded project keys (never include them in outputs).
     ////////////////////////////////////////////////////////////////////////////
     const excludedKeys = new Set([
       "731082029 100 Joe Welch",
@@ -146,10 +146,10 @@
       "ArcFM Design Checklist",
       "Admin Checklist",
       "Trouble Truck Checklist"
-    ].map(s => s.trim())); // Trim to avoid spacing mismatches
+    ].map(s => s.trim()));
 
     ////////////////////////////////////////////////////////////////////////////
-    // 2) If SPIDAmin "Assigned" is any of these emails, show them in new column
+    // 2) SPIDAmin "Assigned" email check – if matches, add to new column in Simple CSV.
     ////////////////////////////////////////////////////////////////////////////
     const spidaminEmailList = new Set([
       "landon.rodgers@txnmenergy.com",
@@ -160,7 +160,7 @@
     ]);
 
     ////////////////////////////////////////////////////////////////////////////
-    // 3) If Trello "Members" includes certain usernames, map them to names
+    // 3) Trello "Members" mapping for new columns in Simple CSV.
     ////////////////////////////////////////////////////////////////////////////
     // For ARCFM TECH
     const arcfmTechMap = {
@@ -169,22 +169,20 @@
     };
     // For ADMIN ASSIGNED
     const adminAssignedMap = {
-      "gracebartlett7":   "GRACE BARTLETT",
-      "randayshahanson":  "RANDAYSHA HANSON"
+      "gracebartlett7":  "GRACE BARTLETT",
+      "randayshahanson": "RANDAYSHA HANSON"
     };
 
     ////////////////////////////////////////////////////////////////////////////
-    // 4) Main tracker definitions & date reformat
+    // 4) Tracker definitions & date reformat.
     ////////////////////////////////////////////////////////////////////////////
-    // Define the key columns for each tracker.
     const keyColumns = {
       pnm: "PROJECT NAME (SPIDAMIN)",
       trello: "Card Name",
       spidamin: "Project"
     };
 
-    // Define field mappings for the main "Comparison CSV" export
-    // and for the on-screen comparison table.
+    // Field mappings for CSV exports (unchanged)
     const fieldMappings = [
       { label: "Project Name", pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
       { label: "WO #", pnm: "PNM WO #", trello: "W.O. #" },
@@ -200,8 +198,7 @@
       { label: "Status", pnm: "STATUS", trello: "List Name", spidamin: "Status" }
     ];
 
-    // Define field mappings for the "Simple CSV" export
-    // We'll add new columns at the end for ARCFM TECH, ADMIN ASSIGNED, and SPIDAmin Email
+    // Field mappings for the Simple CSV export
     const simpleCSVFields = {
       projectName:  { pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
       status:       { pnm: "STATUS", trello: "List Name", spidamin: "Status" },
@@ -214,11 +211,18 @@
       constComplete:{ pnm: "PNM CONSTRUCTION COMPLETE DATE", trello: "Construction Completed" }
     };
 
-    // If we see a Trello date like YYYY-MM-DDTHH:MM:SS.sssZ, convert to MM-DD-YYYY
+    // For the HTML view, we show only three fields:
+    const htmlFieldMappings = [
+      { label: "Project Name", pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
+      { label: "Status", pnm: "STATUS", trello: "List Name", spidamin: "Status" },
+      { label: "Assigned", pnm: "ADMIN ASSIGNED", trello: "", spidamin: "Assigned" }
+    ];
+
+    // If a Trello date is in ISO format, reformat to MM-DD-YYYY.
     function maybeReformatTrelloDate(val) {
       if (!val) return val;
       if (/^\d{4}-\d{2}-\d{2}T/.test(val)) {
-        const datePart = val.split("T")[0]; // e.g. "2025-01-31"
+        const datePart = val.split("T")[0];
         const [yyyy, mm, dd] = datePart.split("-");
         if (yyyy && mm && dd) {
           return `${mm}-${dd}-${yyyy}`;
@@ -227,7 +231,7 @@
       return val;
     }
 
-    // Helper: get a value from a row, applying Trello date reformat if needed
+    // Helper: get a value from a row with date reformatting for Trello.
     function getValue(tracker, row, columnName) {
       if (!row || !columnName) return "";
       let val = (row[columnName] || "").trim();
@@ -293,7 +297,7 @@
     const downloadSimpleCSVBtn = document.getElementById('downloadSimpleCSVBtn');
     const outputDiv = document.getElementById('output');
 
-    let globalGroups = null; // store grouped data for exports
+    let globalGroups = null; // Store grouped data for exports
 
     compareBtn.addEventListener('click', () => {
       if (!filePNMFile || !fileTrelloFile || !fileSpidaminFile) {
@@ -355,7 +359,6 @@
       trelloData.forEach(row => addRow(row, "trello"));
       spidaminData.forEach(row => addRow(row, "spidamin"));
 
-      // Save globally
       globalGroups = groups;
       displayGroups(groups);
       downloadCSVBtn.style.display = "inline-block";
@@ -363,10 +366,9 @@
     }
 
     ////////////////////////////////////////////////////////////////////////////
-    // 7) Sorting & Display
+    // 7) Sorting & HTML Display (only 3 rows: Project Name, Status, Assigned)
     ////////////////////////////////////////////////////////////////////////////
     function getGroupStatus(group) {
-      // For sorting by status if keys are identical
       if (group.pnm && group.pnm["STATUS"]) {
         return group.pnm["STATUS"].trim().toLowerCase();
       } else if (group.trello && group.trello["List Name"]) {
@@ -384,7 +386,6 @@
         const bLower = b.toLowerCase();
         if (aLower < bLower) return -1;
         if (aLower > bLower) return 1;
-        // If the project keys are identical, sort by status
         const statusA = getGroupStatus(groups[a]);
         const statusB = getGroupStatus(groups[b]);
         if (statusA < statusB) return -1;
@@ -394,17 +395,13 @@
       return keys;
     }
 
-    // Display the HTML comparison, skipping excluded keys
+    // For the HTML view, only show the three selected fields.
     function displayGroups(groups) {
       outputDiv.innerHTML = "";
       let allKeys = sortKeysByProjectAndStatus(groups);
-
       let displayedCount = 0;
       for (const key of allKeys) {
-        if (excludedKeys.has(key)) {
-          // Skip
-          continue;
-        }
+        if (excludedKeys.has(key)) continue;
         displayedCount++;
         const group = groups[key];
 
@@ -425,19 +422,11 @@
         table.appendChild(thead);
 
         const tbody = document.createElement("tbody");
-        fieldMappings.forEach(mapping => {
+        htmlFieldMappings.forEach(mapping => {
           const tr = document.createElement("tr");
-          const pnmVal      = getValue("pnm", group.pnm, mapping.pnm);
-          const trelloVal   = getValue("trello", group.trello, mapping.trello);
+          const pnmVal = getValue("pnm", group.pnm, mapping.pnm);
+          const trelloVal = getValue("trello", group.trello, mapping.trello);
           const spidaminVal = getValue("spidamin", group.spidamin, mapping.spidamin);
-
-          let values = [];
-          if (pnmVal) values.push(pnmVal);
-          if (trelloVal) values.push(trelloVal);
-          if (spidaminVal) values.push(spidaminVal);
-          let allMatch = (values.length <= 1) || values.every(val => val === values[0]);
-
-          tr.className = allMatch ? "match" : "mismatch";
           tr.innerHTML = `<td>${mapping.label}</td>
                           <td>${pnmVal || (mapping.pnm ? "<span class='missing'>Not Found</span>" : "")}</td>
                           <td>${trelloVal || (mapping.trello ? "<span class='missing'>Not Found</span>" : "")}</td>
@@ -455,7 +444,7 @@
     }
 
     ////////////////////////////////////////////////////////////////////////////
-    // 8) CSV Exports
+    // 8) CSV Exports (Comparison CSV & Simple CSV remain unchanged)
     ////////////////////////////////////////////////////////////////////////////
     function escapeCSV(value) {
       if (value == null) return "";
@@ -466,27 +455,24 @@
       return value;
     }
 
-    // --- 8a) Comparison CSV (existing format) ---
+    // Comparison CSV export (unchanged)
     downloadCSVBtn.addEventListener('click', () => {
       if (!globalGroups) return;
       let csvRows = [];
       csvRows.push(["Project Key","Field","PNM Value","Trello Value","SPIDAmin Value","Match"].join(","));
-
       let allKeys = sortKeysByProjectAndStatus(globalGroups);
       for (const key of allKeys) {
-        if (excludedKeys.has(key)) continue; // skip
+        if (excludedKeys.has(key)) continue;
         const group = globalGroups[key];
         fieldMappings.forEach(mapping => {
-          const pnmVal      = getValue("pnm", group.pnm, mapping.pnm);
-          const trelloVal   = getValue("trello", group.trello, mapping.trello);
+          const pnmVal = getValue("pnm", group.pnm, mapping.pnm);
+          const trelloVal = getValue("trello", group.trello, mapping.trello);
           const spidaminVal = getValue("spidamin", group.spidamin, mapping.spidamin);
-
           let values = [];
           if (pnmVal) values.push(pnmVal);
           if (trelloVal) values.push(trelloVal);
           if (spidaminVal) values.push(spidaminVal);
           let match = (values.length <= 1) || values.every(val => val === values[0]) ? "Yes" : "No";
-
           csvRows.push([
             escapeCSV(key),
             escapeCSV(mapping.label),
@@ -497,7 +483,6 @@
           ].join(","));
         });
       }
-
       const csvString = csvRows.join("\n");
       const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
@@ -510,21 +495,7 @@
       document.body.removeChild(link);
     });
 
-    // --- 8b) Simple CSV (3 rows per project + new columns) ---
-    // Columns: 
-    // 1) CSVs
-    // 2) Project Name
-    // 3) Status
-    // 4) ArcFM Start
-    // 5) ArcFM End
-    // 6) Staking Count
-    // 7) TT Count
-    // 8) Sent to Scheduling
-    // 9) Added to Schedule
-    // 10) Construction Completed
-    // 11) ARCFM TECH
-    // 12) ADMIN ASSIGNED
-    // 13) SPIDAmin Assigned Email
+    // Simple CSV export (unchanged from previous version)
     downloadSimpleCSVBtn.addEventListener('click', () => {
       if (!globalGroups) return;
       let csvRows = [];
@@ -543,18 +514,14 @@
         "ADMIN ASSIGNED",
         "SPIDAmin Assigned Email"
       ].join(","));
-
       let allKeys = sortKeysByProjectAndStatus(globalGroups);
-
-      // Helper to retrieve the correct field
       function getSimpleVal(tracker, row, colName) {
         return getValue(tracker, row, colName);
       }
-
       // For Trello "Members" => ARCFM TECH / ADMIN ASSIGNED
       function parseTrelloMembers(row) {
         if (!row || !row["Members"]) return { arcfmTech: "", adminAssigned: "" };
-        let members = row["Members"].toLowerCase(); // check substring
+        let members = row["Members"].toLowerCase();
         let arcfmTechList = [];
         for (const [username, fullName] of Object.entries(arcfmTechMap)) {
           if (members.includes(username)) {
@@ -572,27 +539,20 @@
           adminAssigned: adminAssignedList.join(", ")
         };
       }
-
       // For SPIDAmin "Assigned" => check if in spidaminEmailList
       function parseSpidaminAssigned(row) {
         if (!row || !row["Assigned"]) return "";
         let assignedVal = row["Assigned"].trim().toLowerCase();
-        // Our spidaminEmailList is lower-case?
-        // We'll do an exact match ignoring case
         for (const email of spidaminEmailList) {
           if (assignedVal === email.toLowerCase()) {
-            return email; // Return the original or the matching set item
+            return email;
           }
         }
         return "";
       }
-
       for (const key of allKeys) {
-        if (excludedKeys.has(key)) continue; // skip
+        if (excludedKeys.has(key)) continue;
         const group = globalGroups[key];
-
-        // We build up to 3 rows: PNM Value, Trello Value, SPIDAmin Value
-        // 1) PNM
         {
           const rowPNM = group.pnm;
           csvRows.push([
@@ -606,13 +566,11 @@
             escapeCSV(getSimpleVal("pnm", rowPNM, simpleCSVFields.sentToSched.pnm)),
             escapeCSV(getSimpleVal("pnm", rowPNM, simpleCSVFields.addedToSched.pnm)),
             escapeCSV(getSimpleVal("pnm", rowPNM, simpleCSVFields.constComplete.pnm)),
-            "", // ARCFM TECH (PNM doesn't define)
-            "", // ADMIN ASSIGNED (PNM doesn't define)
-            ""  // SPIDAmin Assigned Email
+            "",
+            "",
+            ""
           ].join(","));
         }
-
-        // 2) Trello
         {
           const rowTrello = group.trello;
           const { arcfmTech, adminAssigned } = parseTrelloMembers(rowTrello);
@@ -627,35 +585,31 @@
             escapeCSV(getSimpleVal("trello", rowTrello, simpleCSVFields.sentToSched.trello)),
             escapeCSV(getSimpleVal("trello", rowTrello, simpleCSVFields.addedToSched.trello)),
             escapeCSV(getSimpleVal("trello", rowTrello, simpleCSVFields.constComplete.trello)),
-            escapeCSV(arcfmTech),       // ARCFM TECH
-            escapeCSV(adminAssigned),   // ADMIN ASSIGNED
-            ""                          // SPIDAmin Assigned Email
+            escapeCSV(arcfmTech),
+            escapeCSV(adminAssigned),
+            ""
           ].join(","));
         }
-
-        // 3) SPIDAmin
         {
           const rowSpidamin = group.spidamin;
           const assignedEmail = parseSpidaminAssigned(rowSpidamin);
-          // Typically we don't have ArcFM or scheduling fields in SPIDAmin
           csvRows.push([
             "SPIDAmin Value",
             escapeCSV(getSimpleVal("spidamin", rowSpidamin, simpleCSVFields.projectName.spidamin)),
             escapeCSV(getSimpleVal("spidamin", rowSpidamin, simpleCSVFields.status.spidamin)),
-            "", // ArcFM Start
-            "", // ArcFM End
-            "", // Staking Count
-            "", // TT Count
-            "", // Sent to Scheduling
-            "", // Added to Schedule
-            "", // Construction Completed
-            "", // ARCFM TECH
-            "", // ADMIN ASSIGNED
-            escapeCSV(assignedEmail) // SPIDAmin Assigned Email
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            escapeCSV(assignedEmail)
           ].join(","));
         }
       }
-
       const csvString = csvRows.join("\n");
       const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
