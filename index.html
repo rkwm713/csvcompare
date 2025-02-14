@@ -13,8 +13,22 @@
     h1, h2 {
       color: #333;
     }
-    input[type="file"] {
+    /* Styles for drop zones */
+    .drop-zone {
+      border: 2px dashed #ccc;
+      padding: 20px;
+      text-align: center;
       margin-bottom: 10px;
+      cursor: pointer;
+      color: #666;
+    }
+    .drop-zone.drag-over {
+      background-color: #e8e8e8;
+      border-color: #333;
+    }
+    /* Hide the actual file inputs */
+    input[type="file"] {
+      display: none;
     }
     button {
       padding: 10px 20px;
@@ -58,44 +72,50 @@
 <body>
   <h1>CSV Tracker Comparator</h1>
   <p>
-    Upload the three CSV files below. The tool will group rows by the common project key:
+    Upload the three CSV files below by dragging and dropping them (or clicking the area).
+    The tool groups rows by the common project key:
     <br>
-    • PNM Tracker: <strong>PROJECT NAME (SPIDAMIN)</strong>
+    • PNM Tracker: <strong>PROJECT NAME (SPIDAMIN)</strong> (headers start at row 2)
     <br>
     • Trello Tracker: <strong>Card Name</strong>
     <br>
     • SPIDAmin Tracker: <strong>Project</strong>
   </p>
   
-  <div>
-    <label for="csvPNM"><strong>PNM Project Tracker CSV:</strong></label>
-    <input type="file" id="csvPNM" accept=".csv">
-  </div>
-  <div>
-    <label for="csvTrello"><strong>Trello Staking Tracker CSV:</strong></label>
-    <input type="file" id="csvTrello" accept=".csv">
-  </div>
-  <div>
-    <label for="csvSpidamin"><strong>SPIDAmin Tracker CSV:</strong></label>
-    <input type="file" id="csvSpidamin" accept=".csv">
-  </div>
+  <!-- Drop zone for PNM CSV -->
+  <div class="drop-zone" id="dropZonePNM">Drag & Drop PNM Project Tracker CSV here or click to select file</div>
+  <input type="file" id="csvPNM" accept=".csv">
+  
+  <!-- Drop zone for Trello CSV -->
+  <div class="drop-zone" id="dropZoneTrello">Drag & Drop Trello Staking Tracker CSV here or click to select file</div>
+  <input type="file" id="csvTrello" accept=".csv">
+  
+  <!-- Drop zone for SPIDAmin CSV -->
+  <div class="drop-zone" id="dropZoneSpidamin">Drag & Drop SPIDAmin Tracker CSV here or click to select file</div>
+  <input type="file" id="csvSpidamin" accept=".csv">
+  
   <button id="compareBtn">Compare Trackers</button>
+  <button id="downloadCSVBtn" style="display:none;">Download Comparison CSV</button>
   
   <div id="output"></div>
   
   <!-- Include Papa Parse from CDN -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <script>
-    // Define the key columns for each tracker
+    // Global file storage
+    let filePNMFile = null;
+    let fileTrelloFile = null;
+    let fileSpidaminFile = null;
+
+    // Define the key columns for each tracker.
     const keyColumns = {
       pnm: "PROJECT NAME (SPIDAMIN)",
       trello: "Card Name",
       spidamin: "Project"
     };
 
-    // Define a list of field mappings for comparison.
-    // Each mapping object defines a "label" and then for each tracker
-    // the CSV column name that holds the value.
+    // Define field mappings for comparison.
+    // Each mapping defines a label and the corresponding CSV column names for each tracker.
     const fieldMappings = [
       { label: "Project Name", pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
       { label: "WO #", pnm: "PNM WO #", trello: "W.O. #" },
@@ -111,30 +131,79 @@
       { label: "Status", pnm: "STATUS", trello: "List Name", spidamin: "Status" }
     ];
 
+    // Get drop zones and file inputs.
+    const dropZonePNM = document.getElementById('dropZonePNM');
     const csvPNMInput = document.getElementById('csvPNM');
+
+    const dropZoneTrello = document.getElementById('dropZoneTrello');
     const csvTrelloInput = document.getElementById('csvTrello');
+
+    const dropZoneSpidamin = document.getElementById('dropZoneSpidamin');
     const csvSpidaminInput = document.getElementById('csvSpidamin');
+
     const compareBtn = document.getElementById('compareBtn');
+    const downloadCSVBtn = document.getElementById('downloadCSVBtn');
     const outputDiv = document.getElementById('output');
 
-    compareBtn.addEventListener('click', () => {
-      const filePNM = csvPNMInput.files[0];
-      const fileTrello = csvTrelloInput.files[0];
-      const fileSpidamin = csvSpidaminInput.files[0];
+    let globalGroups = null; // To store the grouped data for CSV export.
 
-      if (!filePNM || !fileTrello || !fileSpidamin) {
+    // --- Drag & Drop & Click-to-Select functionality ---
+    function setupDropZone(dropZone, fileInput, fileSetter) {
+      dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+      });
+      dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+      });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
+          const file = e.dataTransfer.files[0];
+          fileSetter(file);
+          dropZone.textContent = file.name;
+        }
+      });
+      fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+          const file = fileInput.files[0];
+          fileSetter(file);
+          dropZone.textContent = file.name;
+        }
+      });
+    }
+
+    // Setup drop zones for each tracker.
+    setupDropZone(dropZonePNM, csvPNMInput, file => filePNMFile = file);
+    setupDropZone(dropZoneTrello, csvTrelloInput, file => fileTrelloFile = file);
+    setupDropZone(dropZoneSpidamin, csvSpidaminInput, file => fileSpidaminFile = file);
+
+    // --- Compare Button Handler ---
+    compareBtn.addEventListener('click', () => {
+      if (!filePNMFile || !fileTrelloFile || !fileSpidaminFile) {
         alert("Please select all three CSV files.");
         return;
       }
 
-      // Parse all three CSV files
-      Papa.parse(filePNM, {
+      // Parse PNM CSV and skip the first row.
+      Papa.parse(filePNMFile, {
         header: true,
+        beforeFirstChunk: function(chunk) {
+          // Remove the first line (row 1) so that headers start at row 2.
+          const index = chunk.indexOf("\n");
+          if (index !== -1) {
+            return chunk.slice(index + 1);
+          }
+          return chunk;
+        },
         complete: function(resultsPNM) {
-          Papa.parse(fileTrello, {
+          Papa.parse(fileTrelloFile, {
             header: true,
             complete: function(resultsTrello) {
-              Papa.parse(fileSpidamin, {
+              Papa.parse(fileSpidaminFile, {
                 header: true,
                 complete: function(resultsSpidamin) {
                   processData(resultsPNM.data, resultsTrello.data, resultsSpidamin.data);
@@ -158,14 +227,13 @@
       });
     });
 
-    // Group rows from each tracker by their key (project name)
+    // Group rows from each tracker by their key (project name).
     function processData(pnmData, trelloData, spidaminData) {
       const groups = {}; // key => { pnm: row or null, trello: row or null, spidamin: row or null }
 
-      // Helper: add a row to the groups object
       function addRow(row, tracker) {
         let keyVal = (row[keyColumns[tracker]] || "").trim();
-        if (!keyVal) return; // skip rows without a key
+        if (!keyVal) return; // Skip rows without a key.
         if (!groups[keyVal]) {
           groups[keyVal] = { pnm: null, trello: null, spidamin: null };
         }
@@ -176,13 +244,14 @@
       trelloData.forEach(row => addRow(row, "trello"));
       spidaminData.forEach(row => addRow(row, "spidamin"));
 
-      // Now build the output for each project group.
+      globalGroups = groups;
       displayGroups(groups);
+      downloadCSVBtn.style.display = "inline-block";
     }
 
-    // Create an HTML table for each project group
+    // Create an HTML table for each project group.
     function displayGroups(groups) {
-      outputDiv.innerHTML = ""; // clear previous output
+      outputDiv.innerHTML = "";
       let groupCount = 0;
       for (let key in groups) {
         groupCount++;
@@ -193,7 +262,6 @@
         header.textContent = `Project: ${key}`;
         groupDiv.appendChild(header);
 
-        // Build a comparison table for mapped fields
         const table = document.createElement("table");
         const thead = document.createElement("thead");
         thead.innerHTML = `<tr>
@@ -205,27 +273,19 @@
         table.appendChild(thead);
 
         const tbody = document.createElement("tbody");
-
         fieldMappings.forEach(mapping => {
           const tr = document.createElement("tr");
-          // Get values for each tracker
           const pnmVal = group.pnm && mapping.pnm ? (group.pnm[mapping.pnm] || "").trim() : "";
           const trelloVal = group.trello && mapping.trello ? (group.trello[mapping.trello] || "").trim() : "";
           const spidaminVal = group.spidamin && mapping.spidamin ? (group.spidamin[mapping.spidamin] || "").trim() : "";
 
-          // Decide if this row is a match or mismatch.
-          // Compare only among trackers that have a value.
           let values = [];
           if (pnmVal) values.push(pnmVal);
           if (trelloVal) values.push(trelloVal);
           if (spidaminVal) values.push(spidaminVal);
           let allMatch = (values.length <= 1) || values.every(val => val === values[0]);
 
-          // If any tracker is missing this field (i.e. row is missing), mark it.
-          let missing = (!group.pnm && mapping.pnm) || (!group.trello && mapping.trello) || (!group.spidamin && mapping.spidamin);
-
-          tr.className = allMatch && !missing ? "match" : "mismatch";
-
+          tr.className = allMatch ? "match" : "mismatch";
           tr.innerHTML = `<td>${mapping.label}</td>
                           <td>${pnmVal || (mapping.pnm ? "<span class='missing'>Not Found</span>" : "")}</td>
                           <td>${trelloVal || (mapping.trello ? "<span class='missing'>Not Found</span>" : "")}</td>
@@ -234,15 +294,6 @@
         });
         table.appendChild(tbody);
         groupDiv.appendChild(table);
-
-        // Optionally, you could also display the full raw row details from each tracker.
-        const detailsDiv = document.createElement("div");
-        detailsDiv.innerHTML = `<strong>Raw Data:</strong>
-          <pre>PNM: ${JSON.stringify(group.pnm, null, 2)}</pre>
-          <pre>Trello: ${JSON.stringify(group.trello, null, 2)}</pre>
-          <pre>SPIDAmin: ${JSON.stringify(group.spidamin, null, 2)}</pre>`;
-        groupDiv.appendChild(detailsDiv);
-
         outputDiv.appendChild(groupDiv);
       }
 
@@ -250,6 +301,59 @@
         outputDiv.textContent = "No matching project keys were found.";
       }
     }
+
+    // Helper function to escape CSV values.
+    function escapeCSV(value) {
+      if (value == null) return "";
+      value = value.toString();
+      if (value.includes(",") || value.includes("\"") || value.includes("\n")) {
+        value = '"' + value.replace(/"/g, '""') + '"';
+      }
+      return value;
+    }
+
+    // CSV export functionality.
+    downloadCSVBtn.addEventListener('click', () => {
+      if (!globalGroups) return;
+      let csvRows = [];
+      // Header row.
+      csvRows.push(["Project Key", "Field", "PNM Value", "Trello Value", "SPIDAmin Value", "Match"].join(","));
+
+      for (let key in globalGroups) {
+        const group = globalGroups[key];
+        fieldMappings.forEach(mapping => {
+          let pnmVal = group.pnm && mapping.pnm ? (group.pnm[mapping.pnm] || "").trim() : "";
+          let trelloVal = group.trello && mapping.trello ? (group.trello[mapping.trello] || "").trim() : "";
+          let spidaminVal = group.spidamin && mapping.spidamin ? (group.spidamin[mapping.spidamin] || "").trim() : "";
+
+          let values = [];
+          if (pnmVal) values.push(pnmVal);
+          if (trelloVal) values.push(trelloVal);
+          if (spidaminVal) values.push(spidaminVal);
+          let match = (values.length <= 1) || values.every(val => val === values[0]) ? "Yes" : "No";
+
+          csvRows.push([
+            escapeCSV(key),
+            escapeCSV(mapping.label),
+            escapeCSV(pnmVal),
+            escapeCSV(trelloVal),
+            escapeCSV(spidaminVal),
+            escapeCSV(match)
+          ].join(","));
+        });
+      }
+
+      const csvString = csvRows.join("\n");
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "tracker_comparison.csv");
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
   </script>
 </body>
 </html>
