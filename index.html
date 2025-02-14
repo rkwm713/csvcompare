@@ -35,6 +35,16 @@
       margin-top: 10px;
       cursor: pointer;
     }
+    #filterControls {
+      margin: 20px 0;
+      padding: 10px;
+      background: #f8f8f8;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #filterControls label {
+      margin-right: 15px;
+    }
     .group {
       border: 1px solid #ccc;
       margin: 20px 0;
@@ -83,23 +93,36 @@
     </ul>
   </p>
   
-  <!-- Drop zone for PNM CSV -->
+  <!-- Drop zones -->
   <div class="drop-zone" id="dropZonePNM">Drag & Drop PNM Project Tracker CSV here or click to select file</div>
   <input type="file" id="csvPNM" accept=".csv">
   
-  <!-- Drop zone for Trello CSV -->
   <div class="drop-zone" id="dropZoneTrello">Drag & Drop Trello Staking Tracker CSV here or click to select file</div>
   <input type="file" id="csvTrello" accept=".csv">
   
-  <!-- Drop zone for SPIDAmin CSV -->
   <div class="drop-zone" id="dropZoneSpidamin">Drag & Drop SPIDAmin Tracker CSV here or click to select file</div>
   <input type="file" id="csvSpidamin" accept=".csv">
   
   <button id="compareBtn">Compare Trackers</button>
-  
-  <!-- Two export buttons -->
   <button id="downloadCSVBtn" style="display:none;">Download Comparison CSV</button>
   <button id="downloadSimpleCSVBtn" style="display:none;">Download Simple CSV</button>
+  
+  <!-- Filter Controls -->
+  <div id="filterControls">
+    <label>
+      Search Project Name:
+      <input type="text" id="searchProject" placeholder="Project name">
+    </label>
+    <label>
+      Filter by Status:
+      <input type="text" id="filterStatus" placeholder="Status">
+    </label>
+    <label>
+      Filter by Assigned:
+      <input type="text" id="filterAssigned" placeholder="Assigned">
+    </label>
+    <button id="clearFiltersBtn">Clear Filters</button>
+  </div>
   
   <div id="output"></div>
   
@@ -162,19 +185,17 @@
     ////////////////////////////////////////////////////////////////////////////
     // 3) Trello "Members" mapping for new columns in Simple CSV.
     ////////////////////////////////////////////////////////////////////////////
-    // For ARCFM TECH
     const arcfmTechMap = {
       "collinsmith94": "COLLIN SMITH",
       "amritthapa11":  "ARMIT THAPA"
     };
-    // For ADMIN ASSIGNED
     const adminAssignedMap = {
       "gracebartlett7":  "GRACE BARTLETT",
       "randayshahanson": "RANDAYSHA HANSON"
     };
 
     ////////////////////////////////////////////////////////////////////////////
-    // 4) Tracker definitions & date reformat.
+    // 4) Tracker definitions & field mappings.
     ////////////////////////////////////////////////////////////////////////////
     const keyColumns = {
       pnm: "PROJECT NAME (SPIDAMIN)",
@@ -182,7 +203,7 @@
       spidamin: "Project"
     };
 
-    // Field mappings for CSV exports (unchanged)
+    // Field mappings for CSV exports (Comparison CSV and Simple CSV remain unchanged)
     const fieldMappings = [
       { label: "Project Name", pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
       { label: "WO #", pnm: "PNM WO #", trello: "W.O. #" },
@@ -211,14 +232,16 @@
       constComplete:{ pnm: "PNM CONSTRUCTION COMPLETE DATE", trello: "Construction Completed" }
     };
 
-    // For the HTML view, we show only three fields:
+    // For the HTML view we show only three fields.
     const htmlFieldMappings = [
       { label: "Project Name", pnm: "PROJECT NAME (SPIDAMIN)", trello: "Card Name", spidamin: "Project" },
       { label: "Status", pnm: "STATUS", trello: "List Name", spidamin: "Status" },
       { label: "Assigned", pnm: "ADMIN ASSIGNED", trello: "", spidamin: "Assigned" }
     ];
 
-    // If a Trello date is in ISO format, reformat to MM-DD-YYYY.
+    ////////////////////////////////////////////////////////////////////////////
+    // 5) Date reformatting for Trello dates.
+    ////////////////////////////////////////////////////////////////////////////
     function maybeReformatTrelloDate(val) {
       if (!val) return val;
       if (/^\d{4}-\d{2}-\d{2}T/.test(val)) {
@@ -231,7 +254,7 @@
       return val;
     }
 
-    // Helper: get a value from a row with date reformatting for Trello.
+    // Helper: get a value from a row (applying Trello date reformat if needed)
     function getValue(tracker, row, columnName) {
       if (!row || !columnName) return "";
       let val = (row[columnName] || "").trim();
@@ -242,14 +265,24 @@
     }
 
     ////////////////////////////////////////////////////////////////////////////
-    // 5) Drag & Drop Setup
+    // 6) Helper for filtering: get the Assigned value from a group.
+    ////////////////////////////////////////////////////////////////////////////
+    function getGroupAssigned(group) {
+      if (group.pnm && group.pnm["ADMIN ASSIGNED"]) {
+        return group.pnm["ADMIN ASSIGNED"].trim().toLowerCase();
+      } else if (group.spidamin && group.spidamin["Assigned"]) {
+        return group.spidamin["Assigned"].trim().toLowerCase();
+      }
+      return "";
+    }
+
+    ////////////////////////////////////////////////////////////////////////////
+    // 7) Drag & Drop Setup
     ////////////////////////////////////////////////////////////////////////////
     const dropZonePNM = document.getElementById('dropZonePNM');
     const csvPNMInput = document.getElementById('csvPNM');
-
     const dropZoneTrello = document.getElementById('dropZoneTrello');
     const csvTrelloInput = document.getElementById('csvTrello');
-
     const dropZoneSpidamin = document.getElementById('dropZoneSpidamin');
     const csvSpidaminInput = document.getElementById('csvSpidamin');
 
@@ -280,32 +313,27 @@
         }
       });
     }
-
     setupDropZone(dropZonePNM, csvPNMInput, file => filePNMFile = file);
     setupDropZone(dropZoneTrello, csvTrelloInput, file => fileTrelloFile = file);
     setupDropZone(dropZoneSpidamin, csvSpidaminInput, file => fileSpidaminFile = file);
 
     ////////////////////////////////////////////////////////////////////////////
-    // 6) Parsing & Grouping
+    // 8) Parsing & Grouping
     ////////////////////////////////////////////////////////////////////////////
     let filePNMFile = null;
     let fileTrelloFile = null;
     let fileSpidaminFile = null;
-
     const compareBtn = document.getElementById('compareBtn');
     const downloadCSVBtn = document.getElementById('downloadCSVBtn');
     const downloadSimpleCSVBtn = document.getElementById('downloadSimpleCSVBtn');
     const outputDiv = document.getElementById('output');
-
-    let globalGroups = null; // Store grouped data for exports
+    let globalGroups = null; // To store grouped data for exports and filtering
 
     compareBtn.addEventListener('click', () => {
       if (!filePNMFile || !fileTrelloFile || !fileSpidaminFile) {
         alert("Please select all three CSV files.");
         return;
       }
-
-      // Parse PNM CSV, skipping the first row
       Papa.parse(filePNMFile, {
         header: true,
         beforeFirstChunk: function(chunk) {
@@ -344,8 +372,7 @@
     });
 
     function processData(pnmData, trelloData, spidaminData) {
-      const groups = {}; // key => { pnm: row or null, trello: row or null, spidamin: row or null }
-
+      const groups = {};
       function addRow(row, tracker) {
         let keyVal = (row[keyColumns[tracker]] || "").trim();
         if (!keyVal) return;
@@ -354,11 +381,9 @@
         }
         groups[keyVal][tracker] = row;
       }
-
       pnmData.forEach(row => addRow(row, "pnm"));
       trelloData.forEach(row => addRow(row, "trello"));
       spidaminData.forEach(row => addRow(row, "spidamin"));
-
       globalGroups = groups;
       displayGroups(groups);
       downloadCSVBtn.style.display = "inline-block";
@@ -366,7 +391,7 @@
     }
 
     ////////////////////////////////////////////////////////////////////////////
-    // 7) Sorting & HTML Display (only 3 rows: Project Name, Status, Assigned)
+    // 9) Filtering and HTML Display (only three fields: Project Name, Status, Assigned)
     ////////////////////////////////////////////////////////////////////////////
     function getGroupStatus(group) {
       if (group.pnm && group.pnm["STATUS"]) {
@@ -395,22 +420,28 @@
       return keys;
     }
 
-    // For the HTML view, only show the three selected fields.
     function displayGroups(groups) {
       outputDiv.innerHTML = "";
+      let searchProj = document.getElementById("searchProject").value.trim().toLowerCase();
+      let filterStatus = document.getElementById("filterStatus").value.trim().toLowerCase();
+      let filterAssigned = document.getElementById("filterAssigned").value.trim().toLowerCase();
       let allKeys = sortKeysByProjectAndStatus(groups);
       let displayedCount = 0;
       for (const key of allKeys) {
         if (excludedKeys.has(key)) continue;
-        displayedCount++;
+        // Apply project name filter
+        if (searchProj && !key.toLowerCase().includes(searchProj)) continue;
         const group = groups[key];
-
+        let groupStatus = getGroupStatus(group);
+        if (filterStatus && !groupStatus.includes(filterStatus)) continue;
+        let groupAssigned = getGroupAssigned(group);
+        if (filterAssigned && !groupAssigned.includes(filterAssigned)) continue;
+        displayedCount++;
         const groupDiv = document.createElement("div");
         groupDiv.className = "group";
         const header = document.createElement("h2");
-        header.textContent = `Project: ${key} | Status: ${getGroupStatus(group) || "N/A"}`;
+        header.textContent = `Project: ${key} | Status: ${groupStatus || "N/A"}`;
         groupDiv.appendChild(header);
-
         const table = document.createElement("table");
         const thead = document.createElement("thead");
         thead.innerHTML = `<tr>
@@ -420,7 +451,6 @@
             <th>SPIDAmin Tracker</th>
           </tr>`;
         table.appendChild(thead);
-
         const tbody = document.createElement("tbody");
         htmlFieldMappings.forEach(mapping => {
           const tr = document.createElement("tr");
@@ -437,14 +467,24 @@
         groupDiv.appendChild(table);
         outputDiv.appendChild(groupDiv);
       }
-
       if (displayedCount === 0) {
         outputDiv.textContent = "No matching project keys were found (or all are excluded).";
       }
     }
 
+    // Attach real-time filter event listeners
+    document.getElementById("searchProject").addEventListener("input", () => displayGroups(globalGroups));
+    document.getElementById("filterStatus").addEventListener("input", () => displayGroups(globalGroups));
+    document.getElementById("filterAssigned").addEventListener("input", () => displayGroups(globalGroups));
+    document.getElementById("clearFiltersBtn").addEventListener("click", () => {
+      document.getElementById("searchProject").value = "";
+      document.getElementById("filterStatus").value = "";
+      document.getElementById("filterAssigned").value = "";
+      displayGroups(globalGroups);
+    });
+
     ////////////////////////////////////////////////////////////////////////////
-    // 8) CSV Exports (Comparison CSV & Simple CSV remain unchanged)
+    // 10) CSV Exports (Comparison CSV & Simple CSV remain unchanged)
     ////////////////////////////////////////////////////////////////////////////
     function escapeCSV(value) {
       if (value == null) return "";
@@ -454,7 +494,6 @@
       }
       return value;
     }
-
     // Comparison CSV export (unchanged)
     downloadCSVBtn.addEventListener('click', () => {
       if (!globalGroups) return;
@@ -494,8 +533,7 @@
       link.click();
       document.body.removeChild(link);
     });
-
-    // Simple CSV export (unchanged from previous version)
+    // Simple CSV export (unchanged)
     downloadSimpleCSVBtn.addEventListener('click', () => {
       if (!globalGroups) return;
       let csvRows = [];
@@ -518,7 +556,6 @@
       function getSimpleVal(tracker, row, colName) {
         return getValue(tracker, row, colName);
       }
-      // For Trello "Members" => ARCFM TECH / ADMIN ASSIGNED
       function parseTrelloMembers(row) {
         if (!row || !row["Members"]) return { arcfmTech: "", adminAssigned: "" };
         let members = row["Members"].toLowerCase();
@@ -539,7 +576,6 @@
           adminAssigned: adminAssignedList.join(", ")
         };
       }
-      // For SPIDAmin "Assigned" => check if in spidaminEmailList
       function parseSpidaminAssigned(row) {
         if (!row || !row["Assigned"]) return "";
         let assignedVal = row["Assigned"].trim().toLowerCase();
