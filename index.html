@@ -263,12 +263,10 @@
     }
 
     ////////////////////////////////////////////////////////////////////////////
-    // 6) Helper for filtering – get the Assigned value from a group.
+    // 6) Helper for filtering – get the Assigned value from a group from SPIDAmin only.
     ////////////////////////////////////////////////////////////////////////////
     function getGroupAssigned(group) {
-      if (group.pnm && group.pnm["ADMIN ASSIGNED"]) {
-        return group.pnm["ADMIN ASSIGNED"].trim().toLowerCase();
-      } else if (group.spidamin && group.spidamin["Assigned"]) {
+      if (group.spidamin && group.spidamin["Assigned"]) {
         return group.spidamin["Assigned"].trim().toLowerCase();
       }
       return "";
@@ -461,8 +459,12 @@
           spStatus = group.spidamin["Status"].trim().toLowerCase();
         }
         if (filterStatus !== "all" && spStatus !== filterStatus) continue;
-        let groupAssigned = getGroupAssigned(group);
-        if (filterAssigned !== "all" && !groupAssigned.includes(filterAssigned.toLowerCase())) continue;
+        // Use only SPIDAmin tracker for Assigned filtering:
+        let groupAssigned = "";
+        if (group.spidamin && group.spidamin["Assigned"]) {
+          groupAssigned = group.spidamin["Assigned"].trim().toLowerCase();
+        }
+        if (filterAssigned !== "all" && groupAssigned !== filterAssigned.toLowerCase()) continue;
         displayedCount++;
         const groupDiv = document.createElement("div");
         groupDiv.className = "group";
