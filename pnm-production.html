@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PNM Production Tracker</title>
+  <!-- Load Google Fonts: Saira for headers/buttons/filters, Neuton for body copy -->
+  <link href="https://fonts.googleapis.com/css2?family=Neuton&family=Saira:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* Overall Page Styles */
+    body {
+      font-family: 'Neuton', serif;
+      background-color: #4E525B;
+      color: #ffffff;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 80px 20px 20px; /* extra top padding for fixed nav bar */
+    }
+    /* Top Navigation Bar */
+    #topNav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background-color: #2E2E2E;
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      z-index: 1000;
+    }
+    #topNav .logo {
+      margin-right: 20px;
+    }
+    #topNav .logo img {
+      height: 40px; /* adjust as needed */
+    }
+    #topNav .menu {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      gap: 20px;
+    }
+    #topNav .menu li {
+      position: relative;
+      font-family: 'Saira', sans-serif;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    #topNav .menu li a {
+      color: #ffffff;
+      text-decoration: none;
+      padding: 8px 12px;
+      display: block;
+    }
+    /* Dropdown Menu */
+    #topNav .menu li .dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background-color: #2E2E2E;
+      min-width: 200px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+    #topNav .menu li .dropdown-content a {
+      padding: 10px 16px;
+    }
+    #topNav .menu li:hover .dropdown-content {
+      display: block;
+    }
+    /* Main Heading using Saira */
+    h1 {
+      font-family: 'Saira', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 50pt;
+      margin-top: 80px; /* account for fixed nav */
+      margin-bottom: 20px;
+    }
+    /* Center the embedded form */
+    .embed-container {
+      text-align: center;
+      margin: 20px auto;
+    }
+    /* Responsive iframe */
+    .embed-container iframe {
+      border: none;
+      max-width: 100%;
+      max-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <div id="topNav">
+    <div class="logo">
+      <!-- Place your logo image in the same folder as this HTML file -->
+      <img src="logo.png" alt="Logo" />
+    </div>
+    <ul class="menu">
+      <li class="dropdown">
+        <a href="#">PNM</a>
+        <div class="dropdown-content">
+          <a href="index.html">PNM CSV Checker</a>
+          <a href="pnm-production.html">PNM Production Tracker</a>
+        </div>
+      </li>
+      <li class="dropdown">
+        <a href="#">GigaPower</a>
+        <div class="dropdown-content">
+          <a href="#">GigaPower CSV Checker</a>
+          <a href="#">GigaPower Production Tracker</a>
+        </div>
+      </li>
+    </ul>
+  </div>
+  
+  <h1>PNM Production Tracker</h1>
+  
+  <!-- Embedded Form -->
+  <div class="embed-container">
+    <iframe width="640px" height="480px" src="https://forms.office.com/Pages/ResponsePage.aspx?id=9jMlIZ-aZEG8q3rcYsPY1YP0UQVDBU5KqTEiKHpSZ_tUN1E1ODRGMTdLQk82UzZGNzBIOUNCSVZCWC4u&embed=true" 
+      frameborder="0" marginwidth="0" marginheight="0" 
+      allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen>
+    </iframe>
+  </div>
+</body>
+</html>
