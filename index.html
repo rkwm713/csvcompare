@@ -78,7 +78,7 @@
       margin-top: 80px; /* to account for fixed nav */
       margin-bottom: 20px;
     }
-    /* Drop zones with modern look */
+    /* Drop zones */
     .drop-zone {
       border: 2px dashed #ccc;
       border-radius: 8px;
@@ -103,7 +103,7 @@
     input[type="file"] {
       display: none;
     }
-    /* Modern buttons using Saira */
+    /* buttons using Saira */
     button {
       background-color: #FFFF00;
       border: none;
@@ -146,7 +146,7 @@
       border-radius: 4px;
       margin-left: 5px;
     }
-    /* Group boxes with modern styling */
+    /* Group boxes */
     .group {
       border: 1px solid #ccc;
       border-radius: 8px;
@@ -192,7 +192,6 @@
   <!-- Top Navigation Bar -->
   <div id="topNav">
     <div class="logo">
-      <!-- Save your logo image as "logo.png" in the same folder as this HTML file -->
       <img src="logo.png" alt="Logo" />
     </div>
     <ul class="menu">
@@ -230,7 +229,7 @@
   <button id="downloadSimpleCSVBtn" style="display:none;">Download Simple CSV</button>
   <button id="downloadWhatsupBtn" style="display:none;">Export Whatsup</button>
   
-  <!-- NEW: Download Filtered CSV button -->
+  <!-- Download Filtered CSV button -->
   <button id="downloadFilteredBtn" style="display:none;">Download Filtered CSV</button>
   
   <!-- Filter Controls -->
@@ -452,7 +451,7 @@
     const outputDiv = document.getElementById('output');
     let globalGroups = null;
 
-    // We'll store the filtered keys in this array so we can export them easily
+    // filtered keys in this array so we can export them easily
     let filteredKeys = [];
 
     compareBtn.addEventListener('click', () => {
